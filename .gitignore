@@ -3,6 +3,7 @@
 *.fasthttp.gz
 *.wasm
 *.go_
+*.mwb.bak
 Gopkg.lock
 bin
 # build/db/mysql.sh

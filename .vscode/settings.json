@@ -1,32 +1,49 @@
 {
-	"editor.cursorSurroundingLinesStyle": "all",
+	"cSpell.words": [
+		"erba",
+		"fasthttprouter",
+		"portainer",
+		"tecommerce"
+	],
+	"cSpell.ignoreWords": [
+		"HTTPPORT",
+		"Sdump",
+		"davecgh",
+		"dgrijalva",
+		"gorm",
+		"namsral",
+		"peterbourgon",
+		"swaggerapi",
+		"tecommercedev"
+	],
 	"editor.foldingStrategy": "indentation",
-	"files.associations": {
-		"*.gocc": "go",
-	},
 	"files.exclude": {
 		"**/*.fasthttp.gz": true,
 		"**/main.wasm": true
 	},
-	"go.toolsEnvVars": {
-		"GOARCH": "wasm",
-		"GOOS": "js",
-	},
-	"go.testEnvVars": {
-		"GOARCH": "wasm",
-		"GOOS": "js",
-	},
-	"gopls": {
-		"build.directoryFilters": ["-cmd/shared"]
-	},
-	"markdownlint.config": {
-		"MD033": false,
-		"MD040": false
-	},
-	"markdown.extension.print.theme": "dark",
-	"markdown.extension.print.onFileSave": true,
-	"[markdown]": {
-		"editor.wordWrap": "wordWrapColumn",
-		"editor.wordWrapColumn": 210
-	}
+	// "files.associations": {
+	// 	"*.gocc": "go",
+	// },
+	// "go.toolsEnvVars": {
+	// 	"GOARCH": "wasm",
+	// 	"GOOS": "js",
+	// },
+	// "go.testEnvVars": {
+
+	// 	"GOARCH": "wasm",
+	// 	"GOOS": "js",
+	// },
+	// "markdownlint.config": {
+	// 	"MD033": false,
+	// 	"MD040": false
+	// },
+	// "markdown.extension.print.theme": "dark",
+	// "markdown.extension.print.onFileSave": true,
+	// "[markdown]": {
+	// 	"editor.wordWrap": "wordWrapColumn",
+	// 	"editor.wordWrapColumn": 210
+	// },
+	// "gopls": {
+	// 	"build.directoryFilters": ["-cmd/shared"]
+	// },
 }
