@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/SandorMiskey/TEx-kit/log"
 	"github.com/davecgh/go-spew/spew"
-	"gitlab.erba.hu/tecommerce/backend/log"
 )
 
 // endregion: packages
