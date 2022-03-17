@@ -27,10 +27,12 @@ func main() {
 	Config = *cfg.New(os.Args[0])
 	fs := Config.NewFlagSet(os.Args[0])
 	fs.Entries = map[string]cfg.Entry{
-		"foo":      {Desc: "foo description", Type: "time.Duration", Def: time.Duration(66)},
-		"foo_file": {Desc: "foo file desc", Type: "string", Def: ""},
-		"bar":      {Desc: "bar description", Type: "int", Def: 55},
-		"baz":      {Desc: "baz description", Type: "string", Def: "default baz"},
+		"bool":        {Desc: "bool description", Type: "bool", Def: true},
+		"duration":    {Desc: "duration description", Type: "time.Duration", Def: time.Duration(66000)},
+		"float64":     {Desc: "float64 desc", Type: "float64", Def: 77.7},
+		"int":         {Desc: "int description", Type: "int", Def: 99},
+		"string":      {Desc: "string description", Type: "string", Def: "string"},
+		"string_file": {Desc: "string_file description", Type: "string", Def: ""},
 	}
 
 	err := fs.ParseCopy()
