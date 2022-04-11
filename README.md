@@ -9,11 +9,11 @@
 
 ## cfg/
 
-Read config from cli flags, environment or db...
+Read config from cli flags, environment or db... [details](cfg/README.md)
 
 ## log/
 
-Wrapper around `log` and `syslog`
+Wrapper around `log` and `syslog`... [details](log/README.md)
 
 ## Random improvements to be made
 
