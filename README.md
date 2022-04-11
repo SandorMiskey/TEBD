@@ -3,7 +3,17 @@
 ## ToC
 
 1. [ToC](#toc)
-2. [Random improvements to be made](#random-improvements-to-be-made)
+2. [cfg/](#cfg)
+3. [log/](#log)
+4. [Random improvements to be made](#random-improvements-to-be-made)
+
+## cfg/
+
+Read config from cli flags, environment or db...
+
+## log/
+
+Wrapper around `log` and `syslog`
 
 ## Random improvements to be made
 
