@@ -20,7 +20,7 @@ _ = Logger.Ch[0].Out(*log.ChDefaults.Mark, "bar", 1, 1.1, true) // write direct 
 _ = lc.Out(*log.ChDefaults.Mark)                                // write to identified channel
 _ = Logger.Out(*log.ChDefaults.Mark)                            // write to all channels
 _ = log.Out(lc, log.LOG_EMERG, "entry", "with", "severity")     // write to identified channel with severity
-_ = log.Out(&Logger, log.LOG_EMERG, "foobar")
+_ = log.Out(&Logger, log.LOG_EMERG, "foobar")                   // write to all logger channels with severity
 
 ```
 
