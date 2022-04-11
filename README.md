@@ -4,12 +4,17 @@
 
 1. [ToC](#toc)
 2. [cfg/](#cfg)
-3. [log/](#log)
-4. [Random improvements to be made](#random-improvements-to-be-made)
+3. [db/](#db)
+4. [log/](#log)
+5. [Random improvements to be made](#random-improvements-to-be-made)
 
 ## cfg/
 
 Read config from cli flags, environment or db... [details](cfg/README.md)
+
+## db/
+
+Placeholder [details](db/README.md)
 
 ## log/
 
