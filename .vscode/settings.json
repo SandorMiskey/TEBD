@@ -6,13 +6,17 @@
 		"tecommerce"
 	],
 	"cSpell.ignoreWords": [
+		"GOMAXPROCS",
 		"HTTPPORT",
+		"Lmsgprefix",
 		"Sdump",
 		"davecgh",
 		"dgrijalva",
+		"expvar",
 		"gorm",
 		"namsral",
 		"peterbourgon",
+		"struct",
 		"swaggerapi",
 		"tecommercedev"
 	],

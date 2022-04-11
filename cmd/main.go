@@ -3,12 +3,11 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"time"
 
 	"github.com/SandorMiskey/TEx-kit/cfg"
-	"github.com/davecgh/go-spew/spew"
+	"github.com/SandorMiskey/TEx-kit/log"
 )
 
 // endregion: packages
@@ -16,6 +15,7 @@ import (
 
 var (
 	Config cfg.Config
+	Logger log.Logger
 )
 
 // endregion: globals
@@ -24,7 +24,7 @@ func main() {
 
 	// region: config and cli flags
 
-	Config = *cfg.New(os.Args[0])
+	Config = *cfg.NewConfig(os.Args[0])
 	fs := Config.NewFlagSet(os.Args[0])
 	fs.Entries = map[string]cfg.Entry{
 		"bool":        {Desc: "bool description", Type: "bool", Def: true},
@@ -41,15 +41,21 @@ func main() {
 	}
 
 	// endregion: cli flags
+	// region: logger
 
-	something()
-}
+	dc, _ := log.NewCh(log.ChConfig{Type: log.ChSyslog})
+	defer dc.Close()
+	dc.Out(*log.ChDefaults.Mark)
 
-func something() {
-	// cj, err := Config.JSON("", "	")
-	// fmt.Printf("--> JSON representation (err: %v)\n", err)
-	// fmt.Println(string(cj))
-	// fmt.Println("--> Spew dump")
-	// fmt.Println(Config.Sdump())
-	fmt.Println(spew.Sdump(Config.Entries))
+	Logger = *log.NewLogger()
+	lc, _ := Logger.NewCh()
+	defer Logger.Close()
+	_ = Logger.Ch[0].Out(*log.ChDefaults.Mark, "bar", 1, 1.1, true) // write direct to the first channel
+	_ = lc.Out(*log.ChDefaults.Mark)                                // write to identified channel
+	_ = Logger.Out(*log.ChDefaults.Mark)                            // write to all channels
+	_ = log.Out(lc, log.LOG_EMERG, "entry", "with", "severity")     // write to identified channel with severity
+	_ = log.Out(&Logger, log.LOG_EMERG, "foobar")
+
+	// endregion: logger
+
 }

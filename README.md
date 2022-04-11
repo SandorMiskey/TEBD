@@ -1,29 +1,18 @@
-# TE-Commerce Backend
+# TEx-kit
 
 ## ToC
 
 1. [ToC](#toc)
 2. [Random improvements to be made](#random-improvements-to-be-made)
 
-
 ## Random improvements to be made
 
-* logging
-  * review existing logger functions
-  * structured (json, go.uber.org/zap + lumberjack?) + flat output
-  * log levels
-  * db (+ stderr/stdout, db, s3, url) output
-  * endpoints to change config and level
-  * [zap](https://pkg.go.dev/go.uber.org/zap#pkg-examples)
-  * [log](https://pkg.go.dev/go.uber.org/zap#pkg-examples)
-  * [syslog](https://pkg.go.dev/log/syslog)
 * db
   * review - manage transactions during database inserts and updates
   * [gorm?](https://gorm.io/index.html)
-* config
-  * app -> db
-  * reload/dump function
 * http
+  * runtime.GOMAXPROCS(runtime.NumCPU())
+  * expvar, runtime variables and functions, log status/count/file size
   * fasthttprouter -> github.com/fasthttp/router
   * fiber
     * [fiber](https://github.com/gofiber/fiber)

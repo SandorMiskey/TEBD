@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SandorMiskey/TEx-kit/log"
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -69,13 +68,13 @@ var FlagSetFileSuffix = "_file"
 // region: flagset constructor
 
 func NewFlagSet(name string) *FlagSet {
-	_, _, caller := log.Trace()
+	// _, _, caller := log.Trace()
 	fs := FlagSet{
-		config:     nil,
-		createdAt:  time.Now().UTC(),
-		createdBy:  caller,
+		config:    nil,
+		createdAt: time.Now().UTC(),
+		// createdBy:  caller,
 		modifiedAt: time.Now().UTC(),
-		modifiedBy: caller,
+		// modifiedBy: caller,
 
 		Arguments:     FlagSetArguments,
 		Entries:       make(map[string]Entry),
@@ -90,10 +89,10 @@ func NewFlagSet(name string) *FlagSet {
 }
 
 func (c *Config) NewFlagSet(name string) *FlagSet {
-	_, _, caller := log.Trace()
+	// _, _, caller := log.Trace()
 	fs := NewFlagSet(name)
-	fs.createdBy = caller
-	fs.modifiedBy = caller
+	// fs.createdBy = caller
+	// fs.modifiedBy = caller
 	fs.config = c
 	fs.FlagSet = flag.NewFlagSet(name, fs.ErrorHandling)
 	fs.Usage = FlagSetUsage(fs.FlagSet)
@@ -127,8 +126,8 @@ func (fs *FlagSet) Parse() (err error) {
 		entry := fs.Entries[key]
 		entry.createdAt = time.Now().UTC()
 		entry.modifiedAt = time.Now().UTC()
-		_, _, entry.createdBy = log.Trace()
-		_, _, entry.modifiedBy = log.Trace()
+		// _, _, entry.createdBy = log.Trace()
+		// _, _, entry.modifiedBy = log.Trace()
 
 		value, set := os.LookupEnv(strings.ToUpper(key))
 		if set {
@@ -149,8 +148,8 @@ func (fs *FlagSet) Parse() (err error) {
 		entry := fs.Entries[key]
 		entry.createdAt = time.Now().UTC()
 		entry.modifiedAt = time.Now().UTC()
-		_, _, entry.createdBy = log.Trace()
-		_, _, entry.modifiedBy = log.Trace()
+		// _, _, entry.createdBy = log.Trace()
+		// _, _, entry.modifiedBy = log.Trace()
 
 		switch entry.Type {
 		case "bool":

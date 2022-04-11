@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/SandorMiskey/TEx-kit/log"
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -59,13 +58,13 @@ type Config struct {
 // endregion: types
 // region: constructor
 
-func New(name string) *Config {
-	_, _, caller := log.Trace()
+func NewConfig(name string) *Config {
+	// _, _, caller := log.Trace()
 	return &Config{
-		createdAt:  time.Now().UTC(),
-		createdBy:  caller,
+		createdAt: time.Now().UTC(),
+		// createdBy:  caller,
 		modifiedAt: time.Now().UTC(),
-		modifiedBy: caller,
+		// modifiedBy: caller,
 
 		Entries: make(map[string]Entry),
 		FlagSet: make(map[string]*FlagSet),
