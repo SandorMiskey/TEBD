@@ -3,7 +3,26 @@
 ## ToC
 
 1. [ToC](#toc)
-2. [Random improvements to be made](#random-improvements-to-be-made)
+2. [Examples](#examples)
+3. [Random improvements to be made](#random-improvements-to-be-made)
+
+## Examples
+
+```go
+dc, _ := log.NewCh(log.ChConfig{Type: log.ChSyslog})
+defer dc.Close()
+dc.Out(*log.ChDefaults.Mark)
+
+Logger = *log.NewLogger()
+lc, _ := Logger.NewCh()
+defer Logger.Close()
+_ = Logger.Ch[0].Out(*log.ChDefaults.Mark, "bar", 1, 1.1, true) // write direct to the first channel
+_ = lc.Out(*log.ChDefaults.Mark)                                // write to identified channel
+_ = Logger.Out(*log.ChDefaults.Mark)                            // write to all channels
+_ = log.Out(lc, log.LOG_EMERG, "entry", "with", "severity")     // write to identified channel with severity
+_ = log.Out(&Logger, log.LOG_EMERG, "foobar")
+
+```
 
 ## Random improvements to be made
 

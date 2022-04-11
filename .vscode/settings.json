@@ -6,6 +6,7 @@
 		"tecommerce"
 	],
 	"cSpell.ignoreWords": [
+		"EMERG",
 		"GOMAXPROCS",
 		"HTTPPORT",
 		"Lmsgprefix",
