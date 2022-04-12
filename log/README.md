@@ -27,7 +27,9 @@ _ = log.Out(&Logger, log.LOG_EMERG, "foobar")                   // write to all 
 ## Random improvements to be made
 
 * welcome/mark/bye severity (if severity present then use Out() otherwise c.Out())
+* channel id/name, display like logLevel tags
 * init by config json/struct (prerequisite: json/struct in cfg/)
+* Ch.Type vs. Ch.Config.Type
 * endpoints to change/reset config and level
 * scheduled marker (after scheduler is implemented, use mark severity)
 * hooks

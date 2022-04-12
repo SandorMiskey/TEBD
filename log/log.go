@@ -181,9 +181,10 @@ func (l *Logger) Close() (e error) {
 // region: destinations
 
 func NewCh(cs ...ChConfig) (*Ch, error) {
+
 	// region: prepare input
 
-	// not sure if this is okay, but this way you can call log.NewCh() instead of log.NewCh(log.ChDefaults)
+	// not sure if this is idiomatic, but this way you can call log.NewCh() instead of log.NewCh(log.ChDefaults)
 
 	if len(cs) == 0 {
 		cs = append(cs, ChDefaults)
@@ -293,6 +294,7 @@ func NewCh(cs ...ChConfig) (*Ch, error) {
 	return &ch, nil
 
 	// endregion: welcome and back
+
 }
 
 func (l *Logger) NewCh(cs ...ChConfig) (ch *Ch, e error) {
