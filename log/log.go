@@ -105,6 +105,8 @@ type Logger struct {
 // endregion: types
 // region: defaults
 
+// region: ChDefaults
+
 var bye = os.Args[0] + " logger is leaving..."
 var delimiter = " -> "
 var depth = 0
@@ -145,6 +147,18 @@ var ChDefaults = ChConfig{
 	Welcome:        &welcome,        // default mark msg
 }
 
+// endregion: ChDefaults
+// region: messages
+
+var (
+	ErrTooManyParameters      = errors.New("too many parameters")
+	ErrNotImplementedYet      = errors.New("not implemented yet")
+	ErrInvalidFile            = errors.New("invalid file")
+	ErrInvalidLoggerOrChannel = errors.New("invalid logger or channel")
+)
+
+// endregion: messages
+
 // endregion: defaults
 // region: constructors and destructors
 
@@ -175,7 +189,7 @@ func NewCh(cs ...ChConfig) (*Ch, error) {
 		cs = append(cs, ChDefaults)
 	}
 	if len(cs) > 1 {
-		return nil, errors.New("too many parameters")
+		return nil, ErrTooManyParameters
 	}
 	c := cs[0]
 
@@ -236,10 +250,10 @@ func NewCh(cs ...ChConfig) (*Ch, error) {
 
 	switch c.Type {
 	case ChDb:
-		return nil, errors.New("not implemented yet")
+		return nil, ErrNotImplementedYet
 	case ChFile:
 		if c.File == nil || c.File == "" {
-			return nil, errors.New("invalid file")
+			return nil, ErrInvalidFile
 		}
 
 		switch c.File.(type) {
@@ -258,7 +272,7 @@ func NewCh(cs ...ChConfig) (*Ch, error) {
 			ch.Inst = log.New(f, *c.Prefix, *c.Flags)
 			ch.File = f
 		default:
-			return nil, fmt.Errorf("type of c.File=%s is invalid (%T)", c.File, c.File)
+			return nil, fmt.Errorf("%s: c.File=%s, (%T)", ErrInvalidFile, c.File, c.File)
 		}
 	case ChSyslog:
 		inst, err := syslog.NewLogger(*c.Severity|*c.Facility, *c.Flags)
@@ -267,7 +281,7 @@ func NewCh(cs ...ChConfig) (*Ch, error) {
 		}
 		ch.Inst = inst
 	default:
-		return nil, fmt.Errorf("invalid channel type: %v", c.Type)
+		return nil, fmt.Errorf("%s: %v", ErrInvalidLoggerOrChannel, c.Type)
 	}
 
 	// endregion: channel
@@ -292,7 +306,7 @@ func (l *Logger) NewCh(cs ...ChConfig) (ch *Ch, e error) {
 
 func (c *Ch) Close() (e error) {
 	if c.Type != ChFile {
-		return fmt.Errorf("not implemented yet")
+		return ErrNotImplementedYet
 	}
 	if c.Config.Bye != nil {
 		c.Out(*c.Config.Bye)
@@ -401,7 +415,7 @@ func Out(c interface{}, p syslog.Priority, s ...interface{}) *[]error {
 			}
 		}
 	default:
-		es = append(es, errors.New("invalid logger or channel"))
+		es = append(es, ErrInvalidLoggerOrChannel)
 		return &es
 	}
 
