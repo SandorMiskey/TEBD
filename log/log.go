@@ -14,6 +14,51 @@ import (
 )
 
 // endregion: packages
+
+// region: types
+
+type Encoder func(c *Ch, n ...interface{}) (string, error)
+
+type ChType int
+
+type ChSeverityLabels map[syslog.Priority]string
+
+type ChConfig struct {
+	// Db      interface{}
+	Bye            *string
+	Delimiter      *string
+	Depth          *int
+	Encoder        *Encoder
+	Facility       *syslog.Priority
+	File           interface{}
+	FileFlags      *int
+	FilePerm       *int
+	Flags          *int
+	Mark           *string
+	Prefix         *string
+	Severity       *syslog.Priority
+	SeverityLabels *ChSeverityLabels
+	Type           ChType
+	Welcome        *string
+}
+
+type Ch struct {
+	Config  ChConfig
+	Encoder *Encoder
+	File    *os.File
+	Inst    *log.Logger
+	Type    ChType
+}
+
+type LoggerConfig struct {
+	Ch []ChConfig
+}
+
+type Logger struct {
+	Ch []*Ch
+}
+
+// endregion: types
 // region: constants
 
 // channel types
@@ -59,50 +104,6 @@ const (
 )
 
 // endregion: constants
-// region: types
-
-type Encoder func(c *Ch, n ...interface{}) (string, error)
-
-type ChType int
-
-type ChSeverityLabels map[syslog.Priority]string
-
-type ChConfig struct {
-	// Db      interface{}
-	Bye            *string
-	Delimiter      *string
-	Depth          *int
-	Encoder        *Encoder
-	Facility       *syslog.Priority
-	File           interface{}
-	FileFlags      *int
-	FilePerm       *int
-	Flags          *int
-	Mark           *string
-	Prefix         *string
-	Severity       *syslog.Priority
-	SeverityLabels *ChSeverityLabels
-	Type           ChType
-	Welcome        *string
-}
-
-type Ch struct {
-	Config  ChConfig
-	Encoder *Encoder
-	File    *os.File
-	Inst    *log.Logger
-	Type    ChType
-}
-
-type LoggerConfig struct {
-	Ch []ChConfig
-}
-
-type Logger struct {
-	Ch []*Ch
-}
-
-// endregion: types
 // region: defaults
 
 // region: ChDefaults
