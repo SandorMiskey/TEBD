@@ -152,10 +152,10 @@ var ChDefaults = ChConfig{
 // region: messages
 
 var (
-	ErrTooManyParameters      = errors.New("too many parameters")
-	ErrNotImplementedYet      = errors.New("not implemented yet")
 	ErrInvalidFile            = errors.New("invalid file")
 	ErrInvalidLoggerOrChannel = errors.New("invalid logger or channel")
+	ErrNotImplementedYet      = errors.New("not implemented yet")
+	ErrTooManyParameters      = errors.New("too many parameters")
 )
 
 // endregion: messages
