@@ -30,6 +30,7 @@ _ = log.Out(&Logger, log.LOG_EMERG, "foobar")                   // write to all 
 * channel id/name, display like logLevel tags
 * init by config json/struct (prerequisite: json/struct in cfg/)
 * Ch.Type vs. Ch.Config.Type
+* l.Out() parallel (goroutine) writes (w/ context and errGroup?)
 * endpoints to change/reset config and level
 * scheduled marker (after scheduler is implemented, use mark severity)
 * hooks
