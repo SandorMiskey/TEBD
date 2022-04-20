@@ -9,6 +9,7 @@
 		"EMERG",
 		"GOMAXPROCS",
 		"HTTPPORT",
+		"INFILE",
 		"Lmsgprefix",
 		"Sdump",
 		"davecgh",
@@ -19,7 +20,8 @@
 		"peterbourgon",
 		"struct",
 		"swaggerapi",
-		"tecommercedev"
+		"tecommercedev",
+		"trustone"
 	],
 	"editor.foldingStrategy": "indentation",
 	"files.exclude": {

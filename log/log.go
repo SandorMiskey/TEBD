@@ -21,7 +21,7 @@ type Encoder func(c *Ch, n ...interface{}) (string, error)
 
 type ChType int
 
-type ChSeverityLabels map[syslog.Priority]string
+type SeverityLabels map[syslog.Priority]string
 
 type ChConfig struct {
 	// Db      interface{}
@@ -37,7 +37,7 @@ type ChConfig struct {
 	Mark           *string
 	Prefix         *string
 	Severity       *syslog.Priority
-	SeverityLabels *ChSeverityLabels
+	SeverityLabels *SeverityLabels
 	Type           ChType
 	Welcome        *string
 }
@@ -118,7 +118,7 @@ var flags = log.Ldate | log.Ltime | log.LUTC | log.Lshortfile
 var mark = os.Args[0] + " logger was here..."
 var prefix = "==> "
 var severity = syslog.LOG_WARNING
-var severityLabels ChSeverityLabels = map[syslog.Priority]string{
+var severityLabels SeverityLabels = map[syslog.Priority]string{
 	LOG_EMERG:   "__EMERG__: ",
 	LOG_ALERT:   "__ALERT__: ",
 	LOG_CRIT:    "__CRIT__: ",

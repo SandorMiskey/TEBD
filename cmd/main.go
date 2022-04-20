@@ -3,11 +3,14 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"time"
 
 	"github.com/SandorMiskey/TEx-kit/cfg"
+	"github.com/SandorMiskey/TEx-kit/db"
 	"github.com/SandorMiskey/TEx-kit/log"
+	"github.com/davecgh/go-spew/spew"
 )
 
 // endregion: packages
@@ -57,5 +60,15 @@ func main() {
 	_ = log.Out(&Logger, log.LOG_EMERG, "foobar")                   // write to all logger channels with severity
 
 	// endregion: logger
+	// region: db
+
+	// cfg := mysql.NewConfig()
+	cfg := db.DbDefaults
+	cfg.Parsed.AllowAllFiles = true
+	fmt.Println(spew.Sdump(cfg))
+	dsn := cfg.Parsed.FormatDSN()
+	fmt.Println(dsn)
+
+	// endregion: db
 
 }

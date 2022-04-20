@@ -22,9 +22,6 @@ Wrapper around `log` and `syslog`... [details](log/README.md)
 
 ## Random improvements to be made
 
-* db
-  * review - manage transactions during database inserts and updates
-  * [gorm?](https://gorm.io/index.html)
 * http
   * runtime.GOMAXPROCS(runtime.NumCPU())
   * expvar, runtime variables and functions, log status/count/file size

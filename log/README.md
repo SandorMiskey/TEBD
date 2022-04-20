@@ -28,7 +28,7 @@ _ = log.Out(&Logger, log.LOG_EMERG, "foobar")                   // write to all 
 
 * welcome/mark/bye severity (if severity present then use Out() otherwise c.Out())
 * channel id/name, display like logLevel tags
-* init by config json/struct (prerequisite: json/struct in cfg/)
+* init by config json/struct (both Ch and Logger) (prerequisite: json/struct in cfg/)
 * Ch.Type vs. Ch.Config.Type
 * l.Out() parallel (goroutine) writes (w/ context and errGroup?)
 * endpoints to change/reset config and level
