@@ -3,14 +3,11 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"time"
 
 	"github.com/SandorMiskey/TEx-kit/cfg"
-	"github.com/SandorMiskey/TEx-kit/db"
 	"github.com/SandorMiskey/TEx-kit/log"
-	"github.com/davecgh/go-spew/spew"
 )
 
 // endregion: packages
@@ -48,26 +45,26 @@ func main() {
 
 	dc, _ := log.NewCh(log.ChConfig{Type: log.ChSyslog})
 	defer dc.Close()
-	dc.Out(*log.ChDefaults.Mark)
+	_ = dc.Out(log.LOG_EMERG, *log.ChDefaults.Mark)
 
 	Logger = *log.NewLogger()
 	lc, _ := Logger.NewCh()
 	defer Logger.Close()
-	_ = Logger.Ch[0].Out(*log.ChDefaults.Mark, "bar", 1, 1.1, true) // write direct to the first channel
 	_ = lc.Out(*log.ChDefaults.Mark)                                // write to identified channel
+	_ = lc.Out(log.LOG_EMERG, "entry", "with", "severity")          // write to identified channel with severity
+	_ = log.Out(lc, log.LOG_CRIT, "entry", "with", "severity")      // write to identified channel with severity
+	_ = Logger.Ch[0].Out(*log.ChDefaults.Mark, "bar", 1, 1.1, true) // write directly to the first channel
 	_ = Logger.Out(*log.ChDefaults.Mark)                            // write to all channels
-	_ = log.Out(lc, log.LOG_EMERG, "entry", "with", "severity")     // write to identified channel with severity
+	_ = Logger.Out(log.LOG_ALERT, *log.ChDefaults.Mark)             // write to all channels with severity
 	_ = log.Out(&Logger, log.LOG_EMERG, "foobar")                   // write to all logger channels with severity
+	_ = log.Out(nil, log.LOG_EMERG, "quux")                         // write to nowhere
 
 	// endregion: logger
 	// region: db
 
-	// cfg := mysql.NewConfig()
-	cfg := db.DbDefaults
-	cfg.Parsed.AllowAllFiles = true
-	fmt.Println(spew.Sdump(cfg))
-	dsn := cfg.Parsed.FormatDSN()
-	fmt.Println(dsn)
+	// _, err = db.Open(db.Config{Logger: Logger})
+	// if err != nil {
+	// }
 
 	// endregion: db
 
