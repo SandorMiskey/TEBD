@@ -118,7 +118,7 @@ var fileperm = 0640
 var flags = log.Ldate | log.Ltime | log.LUTC | log.Lshortfile
 var mark = "logger was here..."
 var prefix = "==> "
-var severity = syslog.LOG_INFO
+var severity = syslog.LOG_DEBUG
 var severityLabels SeverityLabels = map[syslog.Priority]string{
 	LOG_EMERG:   "__EMERG__: ",
 	LOG_ALERT:   "__ALERT__: ",
@@ -446,11 +446,23 @@ func Out(c interface{}, p syslog.Priority, s ...interface{}) *[]error {
 
 	// switch output depending on channel type
 	switch c.(type) {
+	case Ch:
+		ch := c.(Ch)
+		e := ch.Out(s...)
+		if e != nil {
+			es = append(es, e)
+		}
 	case *Ch:
 		ch := c.(*Ch)
 		e := ch.Out(s...)
 		if e != nil {
 			es = append(es, e)
+		}
+	case Logger:
+		l := c.(Logger)
+		e := l.Out(s...)
+		if e != nil {
+			es = append(es, *e...)
 		}
 	case *Logger:
 		l := c.(*Logger)
