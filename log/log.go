@@ -47,7 +47,8 @@ type Ch struct {
 	Encoder *Encoder
 	File    *os.File
 	Inst    *log.Logger
-	Type    ChType
+	// Inst interface{}
+	Type ChType
 }
 
 type LoggerConfig struct {
@@ -115,9 +116,9 @@ var facility = syslog.LOG_LOCAL0
 var fileflags = os.O_APPEND | os.O_CREATE | os.O_WRONLY
 var fileperm = 0640
 var flags = log.Ldate | log.Ltime | log.LUTC | log.Lshortfile
-var mark = os.Args[0] + " logger was here..."
+var mark = "logger was here..."
 var prefix = "==> "
-var severity = syslog.LOG_WARNING
+var severity = syslog.LOG_INFO
 var severityLabels SeverityLabels = map[syslog.Priority]string{
 	LOG_EMERG:   "__EMERG__: ",
 	LOG_ALERT:   "__ALERT__: ",
@@ -154,6 +155,7 @@ var ChDefaults = ChConfig{
 var (
 	ErrInvalidFile            = errors.New("invalid file")
 	ErrInvalidLoggerOrChannel = errors.New("invalid logger or channel")
+	ErrInvalidSeverity        = errors.New("invalid severity")
 	ErrNotImplementedYet      = errors.New("not implemented yet")
 	ErrTooManyParameters      = errors.New("too many parameters")
 )
@@ -233,6 +235,9 @@ func NewCh(cs ...ChConfig) (*Ch, error) {
 	}
 	if c.Severity == nil {
 		c.Severity = ChDefaults.Severity
+	}
+	if c.SeverityLabels == nil {
+		c.SeverityLabels = ChDefaults.SeverityLabels
 	}
 	if c.Type == ChUndefined {
 		c.Type = ChDefaults.Type
@@ -328,11 +333,9 @@ func (c *Ch) Close() (e error) {
 var EncoderFlat Encoder = func(c *Ch, n ...interface{}) (s string, e error) {
 
 	// prefix with severity label, if needed
-	switch n[0].(type) {
-	case syslog.Priority:
+	if severity, ok := n[0].(syslog.Priority); ok {
 		labels := *c.Config.SeverityLabels
-		index := n[0].(syslog.Priority)
-		label := labels[index]
+		label := labels[severity]
 		s = label + s
 		_, n = n[0], n[1:]
 	}
@@ -361,12 +364,57 @@ func (c *Ch) Out(s ...interface{}) (e error) {
 		}
 	}
 
-	// encode ant out
+	// check severity
+	severity, severityOk := s[0].(syslog.Priority)
+	if severityOk {
+		if severity > LOG_DEBUG {
+			return ErrInvalidSeverity
+		}
+		if *c.Config.Severity < severity {
+			return nil
+		}
+	}
+
+	// encode and out
 	o, e := Encoder(*c.Encoder)(c, s...)
 	if e != nil {
 		c.Inst.Output(depth, e.Error())
 	}
-	c.Inst.Output(depth, o)
+
+	switch c.Type {
+	case ChDb:
+		return ErrNotImplementedYet
+	case ChFile:
+		c.Inst.Output(depth, o)
+	case ChSyslog:
+		if severityOk {
+			writer := c.Inst.Writer().(*syslog.Writer)
+			switch severity {
+			case LOG_EMERG:
+				writer.Emerg(o)
+			case LOG_ALERT:
+				writer.Alert(o)
+			case LOG_CRIT:
+				writer.Crit(o)
+			case LOG_ERR:
+				writer.Err(o)
+			case LOG_WARNING:
+				writer.Warning(o)
+			case LOG_NOTICE:
+				writer.Notice(o)
+			case LOG_INFO:
+				writer.Info(o)
+			case LOG_DEBUG:
+				writer.Debug(o)
+			default:
+				return ErrInvalidSeverity
+			}
+		} else {
+			c.Inst.Output(depth, o)
+		}
+	default:
+		return fmt.Errorf("%s: %v", ErrInvalidLoggerOrChannel, c.Type)
+	}
 	return
 }
 
@@ -391,31 +439,24 @@ func Out(c interface{}, p syslog.Priority, s ...interface{}) *[]error {
 
 	// validate severity
 	if p > LOG_DEBUG {
-		es = append(es, errors.New("invalid severity"))
+		es = append(es, ErrInvalidSeverity)
 		return &es
 	}
+	s = append([]interface{}{p}, s...)
 
 	// switch output depending on channel type
 	switch c.(type) {
 	case *Ch:
-		s = append([]interface{}{p}, s...)
 		ch := c.(*Ch)
-		if *ch.Config.Severity < p {
-			return nil
-		}
 		e := ch.Out(s...)
 		if e != nil {
 			es = append(es, e)
-			return &es
 		}
-		return nil
 	case *Logger:
 		l := c.(*Logger)
-		for _, ch := range l.Ch {
-			e := Out(ch, p, s...)
-			if e != nil {
-				es = append(es, *e...)
-			}
+		e := l.Out(s...)
+		if e != nil {
+			es = append(es, *e...)
 		}
 	default:
 		es = append(es, ErrInvalidLoggerOrChannel)

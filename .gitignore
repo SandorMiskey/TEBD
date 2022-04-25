@@ -6,6 +6,7 @@
 *.mwb.bak
 Gopkg.lock
 bin
+.env
 # build/db/mysql.sh
 # build/credentials.sh
 # build/env.sh
