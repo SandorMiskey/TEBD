@@ -86,17 +86,12 @@ func main() {
 	// region: db
 
 	dummyConfig := db.Config{
-		User:   "testuser",
-		Passwd: "testpasswd",
+		User:   "dummyUser",
+		Passwd: "dummyPassword",
 	}
 	dummyConfig.SetDefaults() // or db.SetDefaults(&dummyConfig) is also available
 	dummyConfig.FormatDSN()   // or db.FormatDSN(&dummyConfig)
-
-	// TODO #1
-	// dummyConfig, err = db.ParseDSN("user:pass@tcp(host)/dbname?allowNativePasswords=true&checkConnLiveness=true&collation=utf8&loc=UTC&maxAllowedPacket=4&foo=bar")
-	// err = dummyConfig.ParseDSN("user:pass@tcp(host)/dbname?allowNativePasswords=true&checkConnLiveness=true&collation=utf8&loc=UTC&maxAllowedPacket=4&foo=bar")
-	// Logger.Out(log.LOG_DEBUG, spew.Sdump(err))
-	Logger.Out(log.LOG_DEBUG, dummyConfig)
+	_ = dummyConfig.ParseDSN("user:pass@tcp(host)/dbname?allowNativePasswords=true&checkConnLiveness=true&collation=utf8&loc=UTC&maxAllowedPacket=4&foo=bar")
 
 	// TODO #2 normalize
 
