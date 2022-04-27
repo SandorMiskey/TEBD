@@ -209,6 +209,72 @@ func (c *Config) ParseDSN(ds ...string) error {
 }
 
 // endregion: ParseDSN
+// region: normalize
 
-// TODO: func ParseURL(url string) (string, error) - ParseURL converts a url to a connection string for driver.Open.
-// TODO: func (cfg *Config) ParseURL(?) ?
+/*
+
+func (cfg *Config) normalize() error {
+	if cfg.InterpolateParams && unsafeCollations[cfg.Collation] {
+		return errInvalidDSNUnsafeCollation
+	}
+
+	// Set default network if empty
+	if cfg.Net == "" {
+		cfg.Net = "tcp"
+	}
+
+	// Set default address if empty
+	if cfg.Addr == "" {
+		switch cfg.Net {
+		case "tcp":
+			cfg.Addr = "127.0.0.1:3306"
+		case "unix":
+			cfg.Addr = "/tmp/mysql.sock"
+		default:
+			return errors.New("default addr for network '" + cfg.Net + "' unknown")
+		}
+	} else if cfg.Net == "tcp" {
+		cfg.Addr = ensureHavePort(cfg.Addr)
+	}
+
+	switch cfg.TLSConfig {
+	case "false", "":
+		// don't set anything
+	case "true":
+		cfg.tls = &tls.Config{}
+	case "skip-verify", "preferred":
+		cfg.tls = &tls.Config{InsecureSkipVerify: true}
+	default:
+		cfg.tls = getTLSConfigClone(cfg.TLSConfig)
+		if cfg.tls == nil {
+			return errors.New("invalid value / unknown config name: " + cfg.TLSConfig)
+		}
+	}
+
+	if cfg.tls != nil && cfg.tls.ServerName == "" && !cfg.tls.InsecureSkipVerify {
+		host, _, err := net.SplitHostPort(cfg.Addr)
+		if err == nil {
+			cfg.tls.ServerName = host
+		}
+	}
+
+	if cfg.ServerPubKey != "" {
+		cfg.pubKey = getServerPubKey(cfg.ServerPubKey)
+		if cfg.pubKey == nil {
+			return errors.New("invalid value / unknown server pub key name: " + cfg.ServerPubKey)
+		}
+	}
+
+	return nil
+}
+
+func ensureHavePort(addr string) string {
+	if _, _, err := net.SplitHostPort(addr); err != nil {
+		return net.JoinHostPort(addr, "3306")
+	}
+	return addr
+}
+
+*/
+
+// endregion: normalize
