@@ -3,11 +3,15 @@
 package main
 
 import (
+	"fmt"
+	"log/syslog"
 	"os"
 	"time"
 
 	"github.com/SandorMiskey/TEx-kit/cfg"
+	"github.com/SandorMiskey/TEx-kit/db"
 	"github.com/SandorMiskey/TEx-kit/log"
+	"github.com/davecgh/go-spew/spew"
 )
 
 // endregion: packages
@@ -43,29 +47,75 @@ func main() {
 	// endregion: cli flags
 	// region: logger
 
-	dc, _ := log.NewCh(log.ChConfig{Type: log.ChSyslog})
-	defer dc.Close()
-	_ = dc.Out(log.LOG_EMERG, *log.ChDefaults.Mark)
+	var dummyEncoder log.Encoder = func(c *log.Ch, n ...interface{}) (s string, e error) {
 
+		// prefix with severity label, if needed
+		if severity, ok := n[0].(syslog.Priority); ok {
+			labels := *c.Config.SeverityLabels
+			label := labels[severity]
+			s = label + s
+			_, n = n[0], n[1:]
+		}
+
+		// encode
+		for k, v := range n {
+			s = fmt.Sprintf("%s%s%d%s%s\n", s, *c.Config.Delimiter, k, *c.Config.Delimiter, spew.Sdump(v))
+		}
+		// s = strings.Replace(s, *c.Config.Delimiter, "", 1)
+		// s = strings.TrimSuffix(s, "\n")
+
+		// done
+		return s, nil
+	}
 	Logger = *log.NewLogger()
-	lc, _ := Logger.NewCh()
 	defer Logger.Close()
-	_ = lc.Out(*log.ChDefaults.Mark)                                // write to identified channel
-	_ = lc.Out(log.LOG_EMERG, "entry", "with", "severity")          // write to identified channel with severity
-	_ = log.Out(lc, log.LOG_CRIT, "entry", "with", "severity")      // write to identified channel with severity
-	_ = Logger.Ch[0].Out(*log.ChDefaults.Mark, "bar", 1, 1.1, true) // write directly to the first channel
-	_ = Logger.Out(*log.ChDefaults.Mark)                            // write to all channels
-	_ = Logger.Out(log.LOG_ALERT, *log.ChDefaults.Mark)             // write to all channels with severity
-	_ = log.Out(&Logger, log.LOG_EMERG, "foobar")                   // write to all logger channels with severity
-	_ = log.Out(nil, log.LOG_EMERG, "quux")                         // write to nowhere
+	_, _ = Logger.NewCh(log.ChConfig{Type: log.ChSyslog})
+	_, _ = Logger.NewCh(log.ChConfig{Encoder: &dummyEncoder})
+	// lfc, _ := Logger.NewCh()
+	// _ = lfc.Out(*log.ChDefaults.Mark)                               // write to identified channel
+	// _ = lfc.Out(log.LOG_EMERG, "entry", "with", "severity")         // write to identified channel with severity
+	// _ = log.Out(lfc, log.LOG_CRIT, "entry", "with", "severity")     // write to identified channel with severity
+	// _ = Logger.Ch[0].Out(*log.ChDefaults.Mark, "bar", 1, 1.1, true) // write directly to the first channel
+	// _ = Logger.Out(*log.ChDefaults.Mark)                            // write to all channels
+	// _ = Logger.Out(log.LOG_ALERT, *log.ChDefaults.Mark)             // write to all channels with severity
+	// _ = log.Out(&Logger, log.LOG_EMERG, "foobar")                   // write to all logger channels with severity
+	// _ = log.Out(nil, log.LOG_EMERG, "quux")                         // write to nowhere
+	// SomethinRemote()
 
 	// endregion: logger
 	// region: db
 
-	// _, err = db.Open(db.Config{Logger: Logger})
-	// if err != nil {
-	// }
+	dummyConfig := db.Config{
+		User:   "testuser",
+		Passwd: "testpasswd",
+	}
+	dummyConfig.SetDefaults() // or db.SetDefaults(&dummyConfig) is also available
+	dummyConfig.FormatDSN()   // or db.FormatDSN(&dummyConfig)
+
+	// TODO #1
+	// dummyConfig, err = db.ParseDSN("user:pass@tcp(host)/dbname?allowNativePasswords=true&checkConnLiveness=true&collation=utf8&loc=UTC&maxAllowedPacket=4&foo=bar")
+	// err = dummyConfig.ParseDSN("user:pass@tcp(host)/dbname?allowNativePasswords=true&checkConnLiveness=true&collation=utf8&loc=UTC&maxAllowedPacket=4&foo=bar")
+	// Logger.Out(log.LOG_DEBUG, spew.Sdump(err))
+	Logger.Out(log.LOG_DEBUG, dummyConfig)
+
+	// TODO #2 normalize
+
+	// TODO #3 Open
+	// _, err = db.Open(db.Config{})
+	// ll := log.LOG_DEBUG
+	// _, err = db.Open(db.Config{Type: db.DbMariaDB, Logger: Logger, Loglevel: &ll})
+	// Logger.Out(log.LOG_DEBUG, err)
+	// _, err = db.Open(db.Config{Type: db.DbMySQL, Logger: Logger, Loglevel: &ll})
+	// Logger.Out(log.LOG_DEBUG, err)
+	// _, err = db.Open(db.Config{Type: db.DbPostgres, Logger: Logger, Loglevel: &ll})
+	// Logger.Out(log.LOG_DEBUG, err)
+	// _, err = db.Open(db.Config{Type: db.DbSQLite3, Logger: Logger, Loglevel: &ll})
+	// Logger.Out(log.LOG_DEBUG, err)
 
 	// endregion: db
 
+}
+
+func SomethinRemote() {
+	Logger.Out(log.LOG_DEBUG, "Something remote...")
 }

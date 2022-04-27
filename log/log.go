@@ -14,7 +14,6 @@ import (
 )
 
 // endregion: packages
-
 // region: types
 
 type Encoder func(c *Ch, n ...interface{}) (string, error)
@@ -105,9 +104,18 @@ const (
 )
 
 // endregion: constants
-// region: defaults
+// region: messages
 
-// region: ChDefaults
+var (
+	ErrInvalidFile            = errors.New("invalid file")
+	ErrInvalidLoggerOrChannel = errors.New("invalid logger or channel")
+	ErrInvalidSeverity        = errors.New("invalid severity")
+	ErrNotImplementedYet      = errors.New("not implemented yet")
+	ErrTooManyParameters      = errors.New("too many parameters")
+)
+
+// endregion: messages
+// region: defaults
 
 var bye = os.Args[0] + " logger is leaving..."
 var delimiter = " -> "
@@ -129,7 +137,7 @@ var severityLabels SeverityLabels = map[syslog.Priority]string{
 	LOG_INFO:    "__INFO__: ",
 	LOG_DEBUG:   "__DEBUG__: ",
 }
-var welcome = os.Args[0] + " logger has been initiated\n"
+var welcome = os.Args[0] + " logger has been initiated"
 
 var ChDefaults = ChConfig{
 	Bye:            &bye,            // default exit msg
@@ -149,22 +157,7 @@ var ChDefaults = ChConfig{
 	Welcome:        &welcome,        // default mark msg
 }
 
-// endregion: ChDefaults
-// region: messages
-
-var (
-	ErrInvalidFile            = errors.New("invalid file")
-	ErrInvalidLoggerOrChannel = errors.New("invalid logger or channel")
-	ErrInvalidSeverity        = errors.New("invalid severity")
-	ErrNotImplementedYet      = errors.New("not implemented yet")
-	ErrTooManyParameters      = errors.New("too many parameters")
-)
-
-// endregion: messages
-
 // endregion: defaults
-// region: constructors and destructors
-
 // region: logger
 
 func NewLogger() (l *Logger) {
@@ -326,8 +319,6 @@ func (c *Ch) Close() (e error) {
 }
 
 // endregion: destinations and destructors
-
-// endregion: constructor
 // region: encoders
 
 var EncoderFlat Encoder = func(c *Ch, n ...interface{}) (s string, e error) {
