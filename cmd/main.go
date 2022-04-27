@@ -47,7 +47,7 @@ func main() {
 	// endregion: cli flags
 	// region: logger
 
-	var dummyEncoder log.Encoder = func(c *log.Ch, n ...interface{}) (s string, e error) {
+	var spewEncoder log.Encoder = func(c *log.Ch, n ...interface{}) (s string, e error) {
 
 		// prefix with severity label, if needed
 		if severity, ok := n[0].(syslog.Priority); ok {
@@ -70,7 +70,7 @@ func main() {
 	Logger = *log.NewLogger()
 	defer Logger.Close()
 	_, _ = Logger.NewCh(log.ChConfig{Type: log.ChSyslog})
-	_, _ = Logger.NewCh(log.ChConfig{Encoder: &dummyEncoder})
+	_, _ = Logger.NewCh(log.ChConfig{Encoder: &spewEncoder})
 	// lfc, _ := Logger.NewCh()
 	// _ = lfc.Out(*log.ChDefaults.Mark)                               // write to identified channel
 	// _ = lfc.Out(log.LOG_EMERG, "entry", "with", "severity")         // write to identified channel with severity
