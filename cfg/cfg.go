@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/SandorMiskey/TEx-kit/log"
 )
 
 // endregion: packages
@@ -59,12 +59,12 @@ type Config struct {
 // region: constructor
 
 func NewConfig(name string) *Config {
-	// _, _, caller := log.Trace()
+	caller := log.Trace()
 	return &Config{
-		createdAt: time.Now().UTC(),
-		// createdBy:  caller,
+		createdAt:  time.Now().UTC(),
+		createdBy:  caller[0].File,
 		modifiedAt: time.Now().UTC(),
-		// modifiedBy: caller,
+		modifiedBy: caller[0].File,
 
 		Entries: make(map[string]Entry),
 		FlagSet: make(map[string]*FlagSet),
@@ -73,11 +73,7 @@ func NewConfig(name string) *Config {
 }
 
 // endregion: constructor
-// region: dumps
-
-func (c *Config) Sdump() string {
-	return spew.Sdump(c)
-}
+// region: dump
 
 func (c *Config) JSON(prefix string, indent string) ([]byte, error) {
 	return json.MarshalIndent(c, prefix, indent)

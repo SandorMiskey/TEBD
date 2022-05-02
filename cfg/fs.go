@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/SandorMiskey/TEx-kit/log"
 )
 
 // endregion: packages
@@ -68,13 +68,13 @@ var FlagSetFileSuffix = "_file"
 // region: flagset constructor
 
 func NewFlagSet(name string) *FlagSet {
-	// _, _, caller := log.Trace()
+	caller := log.Trace()
 	fs := FlagSet{
-		config:    nil,
-		createdAt: time.Now().UTC(),
-		// createdBy:  caller,
+		config:     nil,
+		createdAt:  time.Now().UTC(),
+		createdBy:  caller[0].File,
 		modifiedAt: time.Now().UTC(),
-		// modifiedBy: caller,
+		modifiedBy: caller[0].File,
 
 		Arguments:     FlagSetArguments,
 		Entries:       make(map[string]Entry),
@@ -89,10 +89,10 @@ func NewFlagSet(name string) *FlagSet {
 }
 
 func (c *Config) NewFlagSet(name string) *FlagSet {
-	// _, _, caller := log.Trace()
+	caller := log.Trace()
 	fs := NewFlagSet(name)
-	// fs.createdBy = caller
-	// fs.modifiedBy = caller
+	fs.createdBy = caller[0].File
+	fs.modifiedBy = caller[0].File
 	fs.config = c
 	fs.FlagSet = flag.NewFlagSet(name, fs.ErrorHandling)
 	fs.Usage = FlagSetUsage(fs.FlagSet)
@@ -297,10 +297,6 @@ func (fs *FlagSet) ParseCopy() (err error) {
 
 // endregion: flagset copy
 // region: dumps
-
-func (fs *FlagSet) Sdump() string {
-	return spew.Sdump(fs)
-}
 
 func (fs *FlagSet) MarshalJSON() ([]byte, error) {
 	type FuncAlias FlagSet

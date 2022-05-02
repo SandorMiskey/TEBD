@@ -28,10 +28,9 @@ if err != nil {
 
 ## Random improvements to be made
 
-* Trace() and `caller` in cfg/cfg.go and cfg/fs.go
 * json type
+* recognize db and logger config (somehow define hooks), and set/reset services (Db.ID maybe needed, or even [name]Db)
 * config from db
-* recognize db and logger config (somehow define hooks), and set/reset services
 * set env. variables
 * reload/dump function (maybe restart main?)
 * logging?
