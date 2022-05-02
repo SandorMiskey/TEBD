@@ -10,7 +10,41 @@
 ## Examples
 
 ```go
-...
+dbConfig := db.Config{
+        User:   Config.Entries["dbUser"].Value.(string),
+        Passwd: Config.Entries["dbPasswd"].Value.(string),
+        DBName: "tex",
+        Logger: Logger,
+}
+// dbConfig.SetDefaults() // or db.SetDefaults(&dbConfig) is also available
+// dbConfig.FormatDSN()   // or db.FormatDSN(&dbConfig)
+// _ = dbConfig.ParseDSN("user:pass@tcp(host)/dbname?allowNativePasswords=true&checkConnLiveness=true&collation=utf8_general_ci&loc=UTC&maxAllowedPacket=4&foo=bar")
+
+// MySQL
+dbConfig.Type = db.DbMySQL
+dbConfig.Addr = "localhost:23306"
+_, _ = dbConfig.Open() // or db.Open(dbConfig)
+
+// MariaDB
+dbConfig.Type = db.DbMariaDB
+dbConfig.Addr = "localhost:13306"
+dbConfig.DSN = ""
+_, _ = dbConfig.Open()
+
+// PostgreSQL
+db.DbDefaults = db.DbDefaultsPostgres
+dbConfig.Type = db.DbPostgres
+dbConfig.Addr = "localhost:15432"
+dbConfig.DSN = ""
+dbConfig.Params = nil
+_, _ = dbConfig.Open()
+
+// SQLite3
+dbConfig.Type = db.DbSQLite3
+dbConfig.Addr = "tex.db"
+dbConfig.DSN = ""
+dbConfig.Params = nil
+_, _ = dbConfig.Open()
 ```
 
 ## Infra
