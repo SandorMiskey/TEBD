@@ -37,6 +37,9 @@ func main() {
 		"int":         {Desc: "int description", Type: "int", Def: 99},
 		"string":      {Desc: "string description", Type: "string", Def: "string"},
 		"string_file": {Desc: "string_file description", Type: "string", Def: ""},
+
+		"dbUser":   {Desc: "Database user", Type: "string", Def: ""},
+		"dbPasswd": {Desc: "Database password", Type: "string", Def: ""},
 	}
 
 	err := fs.ParseCopy()
@@ -67,10 +70,11 @@ func main() {
 		// done
 		return s, nil
 	}
+	severity := log.LOG_INFO
 	Logger = *log.NewLogger()
 	defer Logger.Close()
 	_, _ = Logger.NewCh(log.ChConfig{Type: log.ChSyslog})
-	_, _ = Logger.NewCh(log.ChConfig{Encoder: &spewEncoder})
+	_, _ = Logger.NewCh(log.ChConfig{Encoder: &spewEncoder, Severity: &severity})
 	// lfc, _ := Logger.NewCh()
 	// _ = lfc.Out(*log.ChDefaults.Mark)                               // write to identified channel
 	// _ = lfc.Out(log.LOG_EMERG, "entry", "with", "severity")         // write to identified channel with severity
@@ -85,27 +89,54 @@ func main() {
 	// endregion: logger
 	// region: db
 
-	dummyConfig := db.Config{
-		User:   "dummyUser",
-		Passwd: "dummyPassword",
+	dbConfig := db.Config{
+		User:   Config.Entries["dbUser"].Value.(string),
+		Passwd: Config.Entries["dbPasswd"].Value.(string),
+		DBName: "tex",
+		Logger: Logger,
 	}
-	dummyConfig.SetDefaults() // or db.SetDefaults(&dummyConfig) is also available
-	dummyConfig.FormatDSN()   // or db.FormatDSN(&dummyConfig)
-	_ = dummyConfig.ParseDSN("user:pass@tcp(host)/dbname?allowNativePasswords=true&checkConnLiveness=true&collation=utf8&loc=UTC&maxAllowedPacket=4&foo=bar")
+	// dbConfig.SetDefaults() // or db.SetDefaults(&dbConfig) is also available
+	// dbConfig.FormatDSN()   // or db.FormatDSN(&dbConfig)
+	// _ = dbConfig.ParseDSN("user:pass@tcp(host)/dbname?allowNativePasswords=true&checkConnLiveness=true&collation=utf8_general_ci&loc=UTC&maxAllowedPacket=4&foo=bar")
 
-	// TODO #2 normalize
+	// MySQL
+	dbConfig.Type = db.DbMySQL
+	dbConfig.Addr = "localhost:23306"
+	_, err = dbConfig.Open() // or db.Open(dbConfig)
+	Logger.Out(log.LOG_INFO, err)
 
-	// TODO #3 Open
-	// _, err = db.Open(db.Config{})
-	// ll := log.LOG_DEBUG
-	// _, err = db.Open(db.Config{Type: db.DbMariaDB, Logger: Logger, Loglevel: &ll})
-	// Logger.Out(log.LOG_DEBUG, err)
-	// _, err = db.Open(db.Config{Type: db.DbMySQL, Logger: Logger, Loglevel: &ll})
-	// Logger.Out(log.LOG_DEBUG, err)
-	// _, err = db.Open(db.Config{Type: db.DbPostgres, Logger: Logger, Loglevel: &ll})
-	// Logger.Out(log.LOG_DEBUG, err)
-	// _, err = db.Open(db.Config{Type: db.DbSQLite3, Logger: Logger, Loglevel: &ll})
-	// Logger.Out(log.LOG_DEBUG, err)
+	// MariaDB
+	dbConfig.Type = db.DbMariaDB
+	dbConfig.Addr = "localhost:13306"
+	dbConfig.DSN = ""
+	_, err = dbConfig.Open()
+	Logger.Out(log.LOG_INFO, err)
+
+	// PostgreSQL
+	db.DbDefaults = db.DbDefaultsPostgres
+	dbConfig.Type = db.DbPostgres
+	dbConfig.Addr = "localhost:15432"
+	dbConfig.DSN = ""
+	dbConfig.Params = nil
+	_, err = dbConfig.Open()
+	Logger.Out(log.LOG_INFO, err)
+
+	dbConfig, err = db.ParseDSN(dbConfig.DSN)
+	Logger.Out(log.LOG_INFO, dbConfig)
+	Logger.Out(log.LOG_INFO, err)
+
+	// SQLite3
+	dbConfig.Type = db.DbSQLite3
+	dbConfig.Addr = "tex.db"
+	dbConfig.DSN = ""
+	dbConfig.Params = nil
+	_, err = dbConfig.Open()
+	// Logger.Out(log.LOG_INFO, dbConfig)
+	Logger.Out(log.LOG_INFO, dbConfig.DSN)
+	Logger.Out(log.LOG_INFO, err)
+
+	// TODO: sqlite
+	// TODO: db.Close
 
 	// endregion: db
 

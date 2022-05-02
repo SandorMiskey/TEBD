@@ -21,6 +21,7 @@
 		"dgrijalva",
 		"expvar",
 		"gorm",
+		"libpq",
 		"mattn",
 		"mydb",
 		"namsral",
@@ -32,7 +33,8 @@
 		"struct",
 		"swaggerapi",
 		"tecommercedev",
-		"trustone"
+		"trustone",
+		"wmenu"
 	],
 	"editor.foldingStrategy": "indentation",
 	"files.exclude": {

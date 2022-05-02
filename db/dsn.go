@@ -38,11 +38,23 @@ func writeDSNParam(buf *bytes.Buffer, hasParam *bool, name, value string) {
 	buf.WriteString(value)
 }
 
-func FormatDSN(c *Config) (dsn string) {
+func FormatDSN(c *Config) string {
 
 	var buf bytes.Buffer
 
-	// region: [username[:password]@]
+	// region: SQLite shortcut
+
+	if c.Type == DbSQLite3 {
+		c.DSN = c.Addr
+		return c.Addr
+	}
+
+	// endregion: SQLite
+	// region: [proto://][username[:password]@]
+
+	if c.Type == DbPostgres {
+		buf.WriteString("postgres://")
+	}
 
 	if len(c.User) > 0 {
 		buf.WriteString(c.User)
@@ -56,7 +68,9 @@ func FormatDSN(c *Config) (dsn string) {
 	// endregion: [username[:password]@]
 	// region: [protocol[(address)]]
 
-	if len(c.Net) > 0 {
+	if c.Type == DbPostgres {
+		buf.WriteString(c.Addr)
+	} else if len(c.Net) > 0 {
 		buf.WriteString(c.Net)
 		if len(c.Addr) > 0 {
 			buf.WriteByte('(')
@@ -89,9 +103,8 @@ func FormatDSN(c *Config) (dsn string) {
 
 	// endregion: [?param1=value1&...&paramN=valueN]
 
-	dsn = buf.String()
-	c.DSN = dsn
-	return dsn
+	c.DSN = buf.String()
+	return buf.String()
 }
 
 func (c *Config) FormatDSN() {
@@ -115,6 +128,11 @@ func (c *Config) ParseDSN(ds ...string) error {
 		return ErrTooManyParameters
 	}
 	c.DSN = ds[0]
+
+	if strings.HasPrefix(c.DSN, "postgres://") {
+		c.DSN = strings.TrimPrefix(c.DSN, "postgres://")
+		c.Type = DbPostgres
+	}
 
 	// region: [user[:password]@][net[(addr)]]/dbname[?param1=value1&paramN=valueN]
 
@@ -198,7 +216,8 @@ func (c *Config) ParseDSN(ds ...string) error {
 	// endregion: [username[:password]@][protocol[(address)]]
 
 	if !foundSlash && len(c.DSN) > 0 {
-		return errInvalidDSNNoSlash
+		// return errInvalidDSNNoSlash
+		c.Type = DbSQLite3
 	}
 
 	// if err = cfg.normalize(); err != nil {

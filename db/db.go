@@ -52,13 +52,12 @@ type Config struct {
 }
 
 type Db struct {
-	Config Config
+	Config *Config
 	Conn   *sql.DB
-	DSN    string
 }
 
 // endregion: types
-// region: constants
+// region: (pseudo-)constants
 
 const (
 	DbUndefined DbType = iota
@@ -67,6 +66,13 @@ const (
 	DbPostgres
 	DbSQLite3
 )
+
+var DbDrivers = map[DbType]string{
+	DbMariaDB:  "mysql",
+	DbMySQL:    "mysql",
+	DbPostgres: "postgres",
+	DbSQLite3:  "sqlite3",
+}
 
 // endregion: constants
 // region: messages
@@ -86,10 +92,10 @@ var (
 // region: defaults
 
 var (
-	dbDefaultsMaxAllowedPacket int           = 4 << 20
-	dbDefaultsReadTimeout      time.Duration = time.Second * 60
-	dbDefaultsWriteTimeout     time.Duration = time.Second * 60
-	dbDefaultsTimeout          time.Duration = time.Second * 60
+	dbDefaultAllowedPacket int           = 4 << 20
+	dbDefaultReadTimeout   time.Duration = time.Second * 60
+	dbDefaultWriteTimeout  time.Duration = time.Second * 60
+	dbDefaultTimeout       time.Duration = time.Second * 60
 
 	dbDefaultMaxLifetime  time.Duration = time.Minute * 3
 	dbDefaultMaxIdleConns int           = 10
@@ -98,7 +104,9 @@ var (
 	dbDefaultLoglevel syslog.Priority = log.LOG_DEBUG
 )
 
-var DbDefaults = Config{
+var DbDefaults = DbDefaultsMySQL
+
+var DbDefaultsMySQL = Config{
 	Addr:   "localhost",
 	DBName: "tex",
 	DSN:    "",
@@ -107,25 +115,60 @@ var DbDefaults = Config{
 	Type:   DbMySQL,
 	User:   "",
 	Params: map[string]string{
-		"allowNativePasswords": "true",                                   // Allows the native password authentication method
-		"checkConnLiveness":    "true",                                   // Check connections for liveness before using them
-		"collation":            "utf8_general_ci",                        // Connection collation
-		"loc":                  time.UTC.String(),                        // Location for time.Time values
-		"maxAllowedPacket":     strconv.Itoa(dbDefaultsMaxAllowedPacket), // Max packet size allowed
-		// "allowAllFiles":           "false",                         // Allow all files to be used with LOAD DATA LOCAL INFILE
-		// "allowCleartextPasswords": "false",                         // Allows the cleartext client side plugin
-		// "allowOldPasswords":       "false",                         // Allows the old insecure password method
-		// "clientFoundRows":         "false",                         // Return number of matching rows instead of rows changed
-		// "columnsWithAlias":        "false",                         // Prepend table alias to column names
-		// "interpolateParams":       "false",                         // Interpolate placeholders into query string
-		// "multiStatements":         "false",                         // Allow multiple statements in one query
-		// "parseTime":               "false",                         // Parse time values to time.Time
-		// "readTimeout":             dbDefaultsReadTimeout.String(),  // I/O read timeout
-		// "rejectReadOnly":          "false",                         // Reject read-only connections
-		// "serverPubKey":            "",                              // Server public key name
-		// "timeout":                 dbDefaultsTimeout.String(),      // Dial timeout
-		// "tls":                     "",                              // TLS configuration name
-		// "writeTimeout":            dbDefaultsWriteTimeout.String(), // I/O read timeout
+		"allowNativePasswords": "true",                               // Allows the native password authentication method
+		"checkConnLiveness":    "true",                               // Check connections for liveness before using them
+		"collation":            "utf8_general_ci",                    // Connection collation
+		"loc":                  time.UTC.String(),                    // Location for time.Time values
+		"maxAllowedPacket":     strconv.Itoa(dbDefaultAllowedPacket), // Max packet size allowed
+		// "allowAllFiles":           "false",                                      // Allow all files to be used with LOAD DATA LOCAL INFILE
+		// "allowCleartextPasswords": "false",                                      // Allows the cleartext client side plugin
+		// "allowOldPasswords":       "false",                                      // Allows the old insecure password method
+		// "clientFoundRows":         "false",                                      // Return number of matching rows instead of rows changed
+		// "columnsWithAlias":        "false",                                      // Prepend table alias to column names
+		// "interpolateParams":       "false",                                      // Interpolate placeholders into query string
+		// "multiStatements":         "false",                                      // Allow multiple statements in one query
+		// "parseTime":               "false",                                      // Parse time values to time.Time
+		// "readTimeout":             dbDefaultMySQLReadTimeout.String(),           // I/O read timeout
+		// "rejectReadOnly":          "false",                                      // Reject read-only connections
+		// "serverPubKey":            "",                                           // Server public key name
+		// "timeout":                 dbDefaultMySQLTimeout.String(),               // Dial timeout
+		// "tls":                     "",                                           // TLS configuration name
+		// "writeTimeout":            dbDefaultMySQLWriteTimeout.String(),          // I/O read timeout
+	},
+
+	MaxLifetime:  &dbDefaultMaxLifetime,
+	MaxIdleConns: &dbDefaultMaxIdleConns,
+	MaxOpenConns: &dbDefaultMaxOpenConns,
+
+	Logger:   nil,
+	Loglevel: &dbDefaultLoglevel,
+}
+
+var DbDefaultsPostgres = Config{
+	Addr:   "localhost", // The host to connect to. Values that start with / are for unix domain sockets
+	DBName: "tex",       // The name of the database to connect to
+	DSN:    "",
+	Passwd: "",
+	Type:   DbPostgres,
+	User:   "",
+	Params: map[string]string{
+		"sslmode":                   "disable", // Whether or not to use SSL (default is require, this is not the default for libpq)
+		"application_name":          "foo",     // Specifies a value for the application_name configuration parameter
+		"fallback_application_name": "foo",     // An application_name to fall back to if one isn't provided.
+		"connect_timeout":           "20",      // Maximum wait for connection, in seconds. Zero or not specified means wait indefinitely.
+		"sslcert":                   "",        // Cert file location. The file must contain PEM encoded data.
+		"sslkey":                    "",        // Key file location. The file must contain PEM encoded data
+		"sslrootcert":               "",        // The location of the root certificate file. The file must contain PEM encoded data
+		// Valid values for sslmode are:
+		// * disable - No SSL
+		// * require - Always SSL (skip verification)
+		// * verify-ca - Always SSL (verify that the certificate presented by the
+		//   server was signed by a trusted CA)
+		// * verify-full - Always SSL (verify that the certification presented by
+		//   the server was signed by a trusted CA and the server host name
+		//   matches the one in the certificate)
+		//
+		// https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
 	},
 
 	MaxLifetime:  &dbDefaultMaxLifetime,
@@ -187,51 +230,67 @@ func (c *Config) SetDefaults() {
 // endregion: defaults
 // region: open/close
 
-func Open(cs ...Config) (*Db, error) {
+func Open(cs ...*Config) (*Db, error) {
 
 	// region: prepare input
 
 	// not sure if this is idiomatic, but this way you can call db.Open() instead of db.Open(db.DbDefaults)
 
+	defaults := DbDefaults
 	if len(cs) == 0 {
-		cs = append(cs, DbDefaults)
+		cs = append(cs, &defaults)
 	}
 	if len(cs) > 1 {
 		return nil, ErrTooManyParameters
 	}
 	c := cs[0]
 
-	// if c.DSN == nil {
-	// 	// TODO: SetDefaults and FormatDSN
-	// } else {
-	// 	// TODO: SetDefaults and ParseDSN
-	// }
-	// log.Out(c.Logger, *c.Loglevel, c)
+	if c.DSN == "" {
+		c.SetDefaults()
+		c.FormatDSN()
+	} else {
+		c.ParseDSN()
+		c.SetDefaults()
+	}
+	log.Out(c.Logger, *c.Loglevel, c)
 
 	// endregion: prepare
 	// region: connect
 
-	db := Db{
-		Config: c,
-	}
-
-	switch c.Type {
-	case DbPostgres:
-		return nil, ErrNotImplementedYet
-	case DbMariaDB, DbMySQL:
-		// TODO: implement w/ logging
-		return &db, nil
-	case DbSQLite3:
-		return nil, ErrNotImplementedYet
-	default:
+	if DbDrivers[c.Type] == "" {
 		return nil, fmt.Errorf("%s: %v", ErrInvalidDbType, c.Type)
 	}
 
-	// TODO: func (c *Config) Open() (*Db, error)
-	// TODO: func close
+	db := Db{Config: c}
+	conn, e := sql.Open(DbDrivers[c.Type], c.DSN)
+	if e != nil {
+		log.Out(c.Logger, *c.Loglevel, e)
+		return nil, e
+	}
+	db.Conn = conn
+	log.Out(c.Logger, *c.Loglevel, fmt.Sprintf("%s is connected with %s", c.DSN, DbDrivers[c.Type]))
+
+	db.Conn.SetMaxOpenConns(*c.MaxOpenConns)
+	db.Conn.SetMaxIdleConns(*c.MaxIdleConns)
+	db.Conn.SetConnMaxLifetime(*c.MaxLifetime)
 
 	// endregion: connect
+	// region: ping
 
+	e = db.Conn.Ping()
+	if e != nil {
+		log.Out(c.Logger, *c.Loglevel, e)
+		db.Conn.Close()
+		return nil, e
+	}
+
+	// endregion: ping
+
+	return &db, nil
+}
+
+func (c *Config) Open() (*Db, error) {
+	return Open(c)
 }
 
 // endregion: open/close

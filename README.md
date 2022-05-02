@@ -40,4 +40,5 @@ Wrapper around `log` and `syslog`... [details](log/README.md)
   * startup script: docker run -d -p 1081:8080 -e SWAGGER_JSON=/openapi.yaml -v repo root/???/openapi.yaml:/openapi.yaml swaggerapi/swagger-ui
   * <https://github.com/arsmn/fiber-swagger>
   * <https://github.com/swaggo/swag>
+* console app: wmenu
 * <https://gqlgen.com>

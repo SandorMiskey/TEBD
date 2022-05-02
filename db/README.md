@@ -59,8 +59,10 @@ sqlite3 tex.db
 ## Random improvements to be made
 
 * copy from trustone
+* typed result sets where applicable
 * support context.WithTimeout() in queries
 * setters (like Db.SetLogger()), reset (re-parse config)
+* SQLite authentication
 * transactions
 * ---
 * [gorm?](https://gorm.io/index.html)
