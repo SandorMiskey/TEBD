@@ -56,22 +56,27 @@ type Db struct {
 	Conn   *sql.DB
 }
 
+type Statement struct {
+	SQL  string
+	Args []interface{}
+}
+
 // endregion: types
 // region: (pseudo-)constants
 
 const (
-	DbUndefined DbType = iota
-	DbMariaDB
-	DbMySQL
-	DbPostgres
-	DbSQLite3
+	Undefined DbType = iota
+	MariaDB
+	MySQL
+	Postgres
+	SQLite3
 )
 
-var DbDrivers = map[DbType]string{
-	DbMariaDB:  "mysql",
-	DbMySQL:    "mysql",
-	DbPostgres: "postgres",
-	DbSQLite3:  "sqlite3",
+var Drivers = map[DbType]string{
+	MariaDB:  "mysql",
+	MySQL:    "mysql",
+	Postgres: "postgres",
+	SQLite3:  "sqlite3",
 }
 
 // endregion: constants
@@ -104,15 +109,15 @@ var (
 	dbDefaultLoglevel syslog.Priority = log.LOG_DEBUG
 )
 
-var DbDefaults = DbDefaultsMySQL
+var Defaults = DefaultsMySQL
 
-var DbDefaultsMySQL = Config{
+var DefaultsMySQL = Config{
 	Addr:   "localhost",
 	DBName: "tex",
 	DSN:    "",
 	Net:    "tcp",
 	Passwd: "",
-	Type:   DbMySQL,
+	Type:   MySQL,
 	User:   "",
 	Params: map[string]string{
 		"allowNativePasswords": "true",                               // Allows the native password authentication method
@@ -144,12 +149,12 @@ var DbDefaultsMySQL = Config{
 	Loglevel: &dbDefaultLoglevel,
 }
 
-var DbDefaultsPostgres = Config{
+var DefaultsPostgres = Config{
 	Addr:   "localhost", // The host to connect to. Values that start with / are for unix domain sockets
 	DBName: "tex",       // The name of the database to connect to
 	DSN:    "",
 	Passwd: "",
-	Type:   DbPostgres,
+	Type:   Postgres,
 	User:   "",
 	Params: map[string]string{
 		"sslmode":                   "disable", // Whether or not to use SSL (default is require, this is not the default for libpq)
@@ -181,45 +186,45 @@ var DbDefaultsPostgres = Config{
 
 func SetDefaults(c *Config) {
 	if c.Addr == "" {
-		c.Addr = DbDefaults.Addr
+		c.Addr = Defaults.Addr
 	}
 	if c.DBName == "" {
-		c.DBName = DbDefaults.DBName
+		c.DBName = Defaults.DBName
 	}
 	if c.DSN == "" {
-		c.DSN = DbDefaults.DSN
+		c.DSN = Defaults.DSN
 	}
 	if c.Net == "" {
-		c.Net = DbDefaults.Net
+		c.Net = Defaults.Net
 	}
 	if c.Params == nil {
-		c.Params = DbDefaults.Params
+		c.Params = Defaults.Params
 	}
 	if c.Passwd == "" {
-		c.Passwd = DbDefaults.Passwd
+		c.Passwd = Defaults.Passwd
 	}
-	if c.Type == DbUndefined {
-		c.Type = DbDefaults.Type
+	if c.Type == Undefined {
+		c.Type = Defaults.Type
 	}
 	if c.User == "" {
-		c.User = DbDefaults.User
+		c.User = Defaults.User
 	}
 
 	if c.MaxLifetime == nil {
-		c.MaxLifetime = DbDefaults.MaxLifetime
+		c.MaxLifetime = Defaults.MaxLifetime
 	}
 	if c.MaxIdleConns == nil {
-		c.MaxIdleConns = DbDefaults.MaxIdleConns
+		c.MaxIdleConns = Defaults.MaxIdleConns
 	}
 	if c.MaxOpenConns == nil {
-		c.MaxOpenConns = DbDefaults.MaxOpenConns
+		c.MaxOpenConns = Defaults.MaxOpenConns
 	}
 
 	if c.Logger == nil {
-		c.Logger = DbDefaults.Logger
+		c.Logger = Defaults.Logger
 	}
 	if c.Loglevel == nil {
-		c.Loglevel = DbDefaults.Loglevel
+		c.Loglevel = Defaults.Loglevel
 	}
 }
 
@@ -236,7 +241,7 @@ func Open(cs ...*Config) (*Db, error) {
 
 	// not sure if this is idiomatic, but this way you can call db.Open() instead of db.Open(db.DbDefaults)
 
-	defaults := DbDefaults
+	defaults := Defaults
 	if len(cs) == 0 {
 		cs = append(cs, &defaults)
 	}
@@ -252,23 +257,21 @@ func Open(cs ...*Config) (*Db, error) {
 		c.ParseDSN()
 		c.SetDefaults()
 	}
-	log.Out(c.Logger, *c.Loglevel, c)
 
 	// endregion: prepare
 	// region: connect
 
-	if DbDrivers[c.Type] == "" {
+	if Drivers[c.Type] == "" {
 		return nil, fmt.Errorf("%s: %v", ErrInvalidDbType, c.Type)
 	}
 
 	db := Db{Config: c}
-	conn, e := sql.Open(DbDrivers[c.Type], c.DSN)
+	conn, e := sql.Open(Drivers[c.Type], c.DSN)
 	if e != nil {
-		log.Out(c.Logger, *c.Loglevel, e)
+		log.Out(c.Logger, *c.Loglevel, e, c)
 		return nil, e
 	}
 	db.Conn = conn
-	log.Out(c.Logger, *c.Loglevel, fmt.Sprintf("%s is connected with %s", c.DSN, DbDrivers[c.Type]))
 
 	db.Conn.SetMaxOpenConns(*c.MaxOpenConns)
 	db.Conn.SetMaxIdleConns(*c.MaxIdleConns)
@@ -279,10 +282,11 @@ func Open(cs ...*Config) (*Db, error) {
 
 	e = db.Conn.Ping()
 	if e != nil {
-		log.Out(c.Logger, *c.Loglevel, e)
+		log.Out(c.Logger, *c.Loglevel, e, c)
 		db.Conn.Close()
 		return nil, e
 	}
+	log.Out(c.Logger, *c.Loglevel, fmt.Sprintf("connection is established to %s with %s driver", c.DSN, Drivers[c.Type]))
 
 	// endregion: ping
 
@@ -293,4 +297,23 @@ func (c *Config) Open() (*Db, error) {
 	return Open(c)
 }
 
+func Close(db *Db) error {
+	e := db.Conn.Close()
+	if e != nil {
+		log.Out(db.Config.Logger, *db.Config.Loglevel, e, db)
+		return e
+	}
+	conf := *db.Config
+	conf.Logger = nil
+	log.Out(db.Config.Logger, *db.Config.Loglevel, "database connection closed", conf)
+	return nil
+}
+
+func (db *Db) Close() error {
+	return Close(db)
+}
+
 // endregion: open/close
+// region: exec
+
+// endregion: exec

@@ -10,6 +10,7 @@ import (
 
 	"github.com/SandorMiskey/TEx-kit/cfg"
 	"github.com/SandorMiskey/TEx-kit/db"
+	tdb "github.com/SandorMiskey/TEx-kit/db"
 	"github.com/SandorMiskey/TEx-kit/log"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -84,12 +85,11 @@ func main() {
 	// _ = Logger.Out(log.LOG_ALERT, *log.ChDefaults.Mark)             // write to all channels with severity
 	// _ = log.Out(&Logger, log.LOG_EMERG, "foobar")                   // write to all logger channels with severity
 	// _ = log.Out(nil, log.LOG_EMERG, "quux")                         // write to nowhere
-	// SomethinRemote()
 
 	// endregion: logger
 	// region: db
 
-	dbConfig := db.Config{
+	dbConfig := tdb.Config{
 		User:   Config.Entries["dbUser"].Value.(string),
 		Passwd: Config.Entries["dbPasswd"].Value.(string),
 		DBName: "tex",
@@ -100,48 +100,43 @@ func main() {
 	// _ = dbConfig.ParseDSN("user:pass@tcp(host)/dbname?allowNativePasswords=true&checkConnLiveness=true&collation=utf8_general_ci&loc=UTC&maxAllowedPacket=4&foo=bar")
 
 	// MySQL
-	dbConfig.Type = db.DbMySQL
+	dbConfig.Type = tdb.MySQL
 	dbConfig.Addr = "localhost:23306"
-	_, err = dbConfig.Open() // or db.Open(dbConfig)
-	Logger.Out(log.LOG_INFO, err)
+	db, _ := dbConfig.Open() // or db.Open(dbConfig)
+	dbDrill(db)
+	db.Close()
 
 	// MariaDB
-	dbConfig.Type = db.DbMariaDB
+	dbConfig.Type = tdb.MariaDB
 	dbConfig.Addr = "localhost:13306"
 	dbConfig.DSN = ""
-	_, err = dbConfig.Open()
-	Logger.Out(log.LOG_INFO, err)
+	db, _ = dbConfig.Open()
+	dbDrill(db)
+	db.Close()
 
 	// PostgreSQL
-	db.DbDefaults = db.DbDefaultsPostgres
-	dbConfig.Type = db.DbPostgres
+	tdb.Defaults = tdb.DefaultsPostgres
+	dbConfig.Type = tdb.Postgres
 	dbConfig.Addr = "localhost:15432"
 	dbConfig.DSN = ""
 	dbConfig.Params = nil
-	_, err = dbConfig.Open()
-	Logger.Out(log.LOG_INFO, err)
-
-	dbConfig, err = db.ParseDSN(dbConfig.DSN)
-	Logger.Out(log.LOG_INFO, dbConfig)
-	Logger.Out(log.LOG_INFO, err)
+	db, _ = dbConfig.Open()
+	dbDrill(db)
+	db.Close()
 
 	// SQLite3
-	dbConfig.Type = db.DbSQLite3
+	dbConfig.Type = tdb.SQLite3
 	dbConfig.Addr = "tex.db"
 	dbConfig.DSN = ""
 	dbConfig.Params = nil
-	_, err = dbConfig.Open()
-	// Logger.Out(log.LOG_INFO, dbConfig)
-	Logger.Out(log.LOG_INFO, dbConfig.DSN)
-	Logger.Out(log.LOG_INFO, err)
-
-	// TODO: sqlite
-	// TODO: db.Close
+	db, _ = dbConfig.Open()
+	dbDrill(db)
+	defer db.Close() // or tdb.Close(db)
 
 	// endregion: db
 
 }
 
-func SomethinRemote() {
-	Logger.Out(log.LOG_DEBUG, "Something remote...")
+func dbDrill(db *db.Db) {
+	Logger.Out(log.LOG_INFO, "DB DRILL...")
 }

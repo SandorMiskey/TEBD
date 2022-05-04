@@ -44,7 +44,7 @@ func FormatDSN(c *Config) string {
 
 	// region: SQLite shortcut
 
-	if c.Type == DbSQLite3 {
+	if c.Type == SQLite3 {
 		c.DSN = c.Addr
 		return c.Addr
 	}
@@ -52,7 +52,7 @@ func FormatDSN(c *Config) string {
 	// endregion: SQLite
 	// region: [proto://][username[:password]@]
 
-	if c.Type == DbPostgres {
+	if c.Type == Postgres {
 		buf.WriteString("postgres://")
 	}
 
@@ -68,7 +68,7 @@ func FormatDSN(c *Config) string {
 	// endregion: [username[:password]@]
 	// region: [protocol[(address)]]
 
-	if c.Type == DbPostgres {
+	if c.Type == Postgres {
 		buf.WriteString(c.Addr)
 	} else if len(c.Net) > 0 {
 		buf.WriteString(c.Net)
@@ -131,7 +131,7 @@ func (c *Config) ParseDSN(ds ...string) error {
 
 	if strings.HasPrefix(c.DSN, "postgres://") {
 		c.DSN = strings.TrimPrefix(c.DSN, "postgres://")
-		c.Type = DbPostgres
+		c.Type = Postgres
 	}
 
 	// region: [user[:password]@][net[(addr)]]/dbname[?param1=value1&paramN=valueN]
@@ -217,7 +217,7 @@ func (c *Config) ParseDSN(ds ...string) error {
 
 	if !foundSlash && len(c.DSN) > 0 {
 		// return errInvalidDSNNoSlash
-		c.Type = DbSQLite3
+		c.Type = SQLite3
 	}
 
 	// if err = cfg.normalize(); err != nil {

@@ -93,10 +93,15 @@ sqlite3 tex.db
 ## Random improvements to be made
 
 * copy from trustone
+  * Exec
+  * Query to map
+  * Query to JSON
+  * execTransaction
+  * in all above: use type Statement, register last query(s) and result sets
 * typed result sets where applicable
 * support context.WithTimeout() in queries
 * setters (like Db.SetLogger()), reset (re-parse config)
+* connection catalog w/ close all
 * SQLite authentication
-* transactions
 * ---
 * [gorm?](https://gorm.io/index.html)
