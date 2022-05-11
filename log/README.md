@@ -26,6 +26,8 @@ _ = log.Out(&Logger, log.LOG_EMERG, "foobar")                   // write to all 
 
 ## Random improvements to be made
 
+* add taxonomy field
+* extend file and line: func name(?), and full trace
 * welcome/mark/bye severity (if severity present then use Out() otherwise c.Out())
 * channel id/name, display like logLevel tags
 * init by config json/struct (both Ch and Logger) (prerequisite: json/struct in cfg/)

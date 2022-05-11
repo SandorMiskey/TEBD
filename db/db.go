@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/syslog"
 	"strconv"
+	"text/template"
 	"time"
 
 	"github.com/SandorMiskey/TEx-kit/log"
@@ -42,23 +43,31 @@ type Config struct {
 	MaxOpenConns *int
 
 	// endregion: connection
-	// region: logger
+	// region: internaL
 
 	Logger   interface{}
 	Loglevel *syslog.Priority
 
-	// endregion: logger
+	History *int
+
+	// endregion: internal
 
 }
 
 type Db struct {
-	Config *Config
-	Conn   *sql.DB
+	Config  *Config
+	Conn    *sql.DB
+	History []*Statement
 }
 
 type Statement struct {
-	SQL  string
-	Args []interface{}
+	Args         []interface{}
+	RowsAffected int64
+	Err          error
+	LastInsertId int64
+	Unprotected  bool
+	SQL          string
+	Result       interface{}
 }
 
 // endregion: types
@@ -83,14 +92,21 @@ var Drivers = map[DbType]string{
 // region: messages
 
 var (
-	ErrInvalidDbType       = errors.New("invalid db type")
-	errInvalidDSNAddr      = errors.New("invalid DSN: network address not terminated (missing closing brace)")
-	errInvalidDSNNoSlash   = errors.New("invalid DSN: missing the slash separating the database name")
-	errInvalidDSNUnescaped = errors.New("invalid DSN: did you forget to escape a param value?")
-	ErrNotImplementedYet   = errors.New("not implemented yet")
-	ErrTooManyParameters   = errors.New("too many parameters")
+	ErrExecFailed             = errors.New("db.Exec() failed")
+	ErrExecLastIdFailed       = errors.New("db.Exec was successfull but getting LastInsertId failed")
+	ErrExecRowsAffectedFailed = errors.New("db.Exec was successfull but getting RowsAffected failed")
+	ErrInvalidDbType          = errors.New("invalid db type")
+	ErrInvalidDSNAddr         = errors.New("invalid DSN: network address not terminated (missing closing brace)")
+	ErrInvalidDSNNoSlash      = errors.New("invalid DSN: missing the slash separating the database name")
+	ErrInvalidDSNUnescaped    = errors.New("invalid DSN: did you forget to escape a param value?")
+	ErrNotImplementedYet      = errors.New("not implemented yet")
+	ErrTooManyParameters      = errors.New("too many parameters")
+	// ErrInvalidDSNUnsafeCollation = errors.New("invalid DSN: interpolateParams can not be used with unsafe collations")
 
-	// errInvalidDSNUnsafeCollation = errors.New("invalid DSN: interpolateParams can not be used with unsafe collations")
+	MsgConnClosed           = "connection closed"
+	MsgConnEstablished      = "connection established"
+	MsgExecStatement        = "db.Exec() statement"
+	MsgExecStatementEscaped = "db.Exec() statement escaped"
 )
 
 // endregion: messages
@@ -107,6 +123,8 @@ var (
 	dbDefaultMaxOpenConns int           = 10
 
 	dbDefaultLoglevel syslog.Priority = log.LOG_DEBUG
+
+	dbDefaultHistory int = 10
 )
 
 var Defaults = DefaultsMySQL
@@ -147,6 +165,8 @@ var DefaultsMySQL = Config{
 
 	Logger:   nil,
 	Loglevel: &dbDefaultLoglevel,
+
+	History: &dbDefaultHistory,
 }
 
 var DefaultsPostgres = Config{
@@ -226,6 +246,10 @@ func SetDefaults(c *Config) {
 	if c.Loglevel == nil {
 		c.Loglevel = Defaults.Loglevel
 	}
+
+	if c.History == nil {
+		c.History = Defaults.History
+	}
 }
 
 func (c *Config) SetDefaults() {
@@ -233,6 +257,13 @@ func (c *Config) SetDefaults() {
 }
 
 // endregion: defaults
+// region: logger
+
+// func (db *Db) Logger(n ...interface{}) {
+// 	log.Out(db.Config.Logger, *db.Config.Loglevel, n...)
+// }
+
+// endregion: logger
 // region: open/close
 
 func Open(cs ...*Config) (*Db, error) {
@@ -272,10 +303,11 @@ func Open(cs ...*Config) (*Db, error) {
 		return nil, e
 	}
 	db.Conn = conn
-
 	db.Conn.SetMaxOpenConns(*c.MaxOpenConns)
 	db.Conn.SetMaxIdleConns(*c.MaxIdleConns)
 	db.Conn.SetConnMaxLifetime(*c.MaxLifetime)
+
+	db.History = make([]*Statement, 0, *db.Config.History)
 
 	// endregion: connect
 	// region: ping
@@ -314,6 +346,96 @@ func (db *Db) Close() error {
 }
 
 // endregion: open/close
+// region: history
+
+func (db *Db) HistoryAppend(s *Statement) {
+	x := *db.Config.History
+	if len(db.History) < *db.Config.History {
+		x = len(db.History)
+	}
+	if len(db.History) != 0 {
+		db.History = db.History[:x]
+	}
+	db.History = append([]*Statement{s}, db.History...)
+}
+
+// endregion: history
 // region: exec
+
+func Exec(db *Db, stmnt Statement) Statement {
+	log.Out(db.Config.Logger, *db.Config.Loglevel, MsgExecStatement, stmnt)
+
+	// region: xss protection
+
+	// TODO: check sting and []byte if content is valid JSON?
+
+	if !stmnt.Unprotected {
+		for k, v := range stmnt.Args {
+			switch v.(type) {
+			case string:
+				stmnt.Args[k] = template.HTMLEscaper(v)
+			case []byte:
+				stmnt.Args[k] = template.HTMLEscaper(string(v.([]byte)))
+			case sql.NullString:
+				stmnt.Args[k] = sql.NullString{
+					String: template.HTMLEscaper(v.(sql.NullString).String),
+					Valid:  v.(sql.NullString).Valid,
+				}
+			default:
+				stmnt.Args[k] = v
+			}
+		}
+		stmnt.SQL = template.HTMLEscaper(stmnt.SQL)
+		log.Out(db.Config.Logger, *db.Config.Loglevel, MsgExecStatementEscaped, stmnt)
+	}
+
+	// endregion: injection protection
+	// region: actual
+
+	var err error
+	stmnt.Result, err = db.Conn.Exec(stmnt.SQL, stmnt.Args...)
+	if err != nil {
+		stmnt.Err = fmt.Errorf("%s: %w", ErrExecFailed, err)
+		log.Out(db.Config.Logger, *db.Config.Loglevel, stmnt.Err)
+		return stmnt
+	}
+
+	// endregion: actual
+	// region: last id and rows affected
+
+	if db.Config.Type != Postgres {
+		stmnt.LastInsertId, err = stmnt.Result.(sql.Result).LastInsertId()
+		if err != nil {
+			stmnt.Err = fmt.Errorf("%s: %w", ErrExecLastIdFailed, err)
+			log.Out(db.Config.Logger, *db.Config.Loglevel, stmnt.Err)
+			return stmnt
+		}
+	}
+
+	stmnt.RowsAffected, err = stmnt.Result.(sql.Result).RowsAffected()
+	if err != nil {
+		stmnt.Err = fmt.Errorf("%s: %w", ErrExecRowsAffectedFailed, err)
+		log.Out(db.Config.Logger, *db.Config.Loglevel, stmnt.Err)
+		return stmnt
+	}
+
+	// endregion: last id and rows affected
+
+	db.HistoryAppend(&stmnt)
+	return stmnt
+}
+
+func (db *Db) Exec(stmnt Statement) Statement {
+	return Exec(db, stmnt)
+}
+
+func (stmnt *Statement) Exec(db *Db) {
+	statement := Exec(db, *stmnt)
+	stmnt.Err = statement.Err
+	stmnt.RowsAffected = statement.RowsAffected
+	stmnt.LastInsertId = statement.LastInsertId
+	stmnt.Result = statement.Result
+	db.History[0] = stmnt
+}
 
 // endregion: exec

@@ -7,6 +7,10 @@
 Gopkg.lock
 bin
 .env
+
+cmd/.dbpasswd
+cmd/tex.db
+
 # build/db/mysql.sh
 # build/credentials.sh
 # build/env.sh

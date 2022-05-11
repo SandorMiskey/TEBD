@@ -117,7 +117,7 @@ var (
 // endregion: messages
 // region: defaults
 
-var bye = os.Args[0] + " logger is leaving..."
+var bye = "logger is leaving..."
 var delimiter = " -> "
 var depth = 0
 var facility = syslog.LOG_LOCAL0

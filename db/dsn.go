@@ -174,9 +174,9 @@ func (c *Config) ParseDSN(ds ...string) error {
 						// dsn[i-1] must be == ')' if an address is specified
 						if c.DSN[i-1] != ')' {
 							if strings.ContainsRune(c.DSN[k+1:i], ')') {
-								return errInvalidDSNUnescaped
+								return ErrInvalidDSNUnescaped
 							}
-							return errInvalidDSNAddr
+							return ErrInvalidDSNAddr
 						}
 						c.Addr = c.DSN[k+1 : i-1]
 						break
@@ -234,7 +234,7 @@ func (c *Config) ParseDSN(ds ...string) error {
 
 func (cfg *Config) normalize() error {
 	if cfg.InterpolateParams && unsafeCollations[cfg.Collation] {
-		return errInvalidDSNUnsafeCollation
+		return ErrInvalidDSNUnsafeCollation
 	}
 
 	// Set default network if empty
