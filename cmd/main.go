@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/syslog"
 	"os"
-	"time"
 
 	"github.com/SandorMiskey/TEx-kit/cfg"
 	"github.com/SandorMiskey/TEx-kit/db"
@@ -19,8 +18,8 @@ import (
 
 var (
 	Config cfg.Config
-	Logger log.Logger
 	Db     *db.Db
+	Logger log.Logger
 )
 
 // endregion: globals
@@ -32,15 +31,17 @@ func main() {
 	Config = *cfg.NewConfig(os.Args[0])
 	fs := Config.NewFlagSet(os.Args[0])
 	fs.Entries = map[string]cfg.Entry{
-		"bool":     {Desc: "bool description", Type: "bool", Def: true},
-		"duration": {Desc: "duration description", Type: "time.Duration", Def: time.Duration(66000)},
-		"float64":  {Desc: "float64 desc", Type: "float64", Def: 77.7},
-		"int":      {Desc: "int description", Type: "int", Def: 99},
+		// "bool":     {Desc: "bool description", Type: "bool", Def: true},
+		// "duration": {Desc: "duration description", Type: "time.Duration", Def: time.Duration(66000)},
+		// "float64":  {Desc: "float64 desc", Type: "float64", Def: 77.7},
 
 		"dbUser":        {Desc: "Database user", Type: "string", Def: ""},
 		"dbPasswd":      {Desc: "Database password", Type: "string", Def: ""},
 		"dbPasswd_file": {Desc: "Database password file", Type: "string", Def: ""},
 		"dbName":        {Desc: "Database name", Type: "string", Def: "tex"},
+
+		"loggerLevel": {Desc: "Logger min severity", Type: "int", Def: 5},
+		"logLevel":    {Desc: "Log level everywhere", Type: "int", Def: 6},
 	}
 
 	err := fs.ParseCopy()
@@ -51,48 +52,54 @@ func main() {
 	// endregion: cli flags
 	// region: logger
 
+	// region: sample encoder
+
 	var spewEncoder log.Encoder = func(c *log.Ch, n ...interface{}) (s string, e error) {
-
-		// prefix with severity label, if needed
-		if severity, ok := n[0].(syslog.Priority); ok {
-			labels := *c.Config.SeverityLabels
-			label := labels[severity]
-			s = label + s
-			_, n = n[0], n[1:]
-		}
-
-		// encode
 		s = "\n"
 		for k, v := range n {
+			if severity, ok := v.(syslog.Priority); ok {
+				labels := *c.Config.SeverityLabels
+				v = labels[severity]
+			}
 			s = fmt.Sprintf("%s%s%d%s%s", s, *c.Config.Delimiter, k, *c.Config.Delimiter, spew.Sdump(v))
 		}
 		// s = strings.Replace(s, *c.Config.Delimiter, "", 1)
 		// s = strings.TrimSuffix(s, "\n")
 
-		// done
 		return s, nil
 	}
-	severity := log.LOG_INFO
+
+	// endregion: sample encoder
+	// region: new logger and channels
+
+	logLevel := syslog.Priority(Config.Entries["logLevel"].Value.(int))
+	loggerLevel := syslog.Priority(Config.Entries["loggerLevel"].Value.(int))
+
 	Logger = *log.NewLogger()
 	defer Logger.Close()
 	_, _ = Logger.NewCh(log.ChConfig{Type: log.ChSyslog})
-	_, _ = Logger.NewCh(log.ChConfig{Encoder: &spewEncoder, Severity: &severity})
-	// lfc, _ := Logger.NewCh()
-	// _ = lfc.Out(*log.ChDefaults.Mark)                               // write to identified channel
-	// _ = lfc.Out(log.LOG_EMERG, "entry", "with", "severity")         // write to identified channel with severity
-	// _ = log.Out(lfc, log.LOG_CRIT, "entry", "with", "severity")     // write to identified channel with severity
+	lfc, _ := Logger.NewCh(log.ChConfig{Encoder: &spewEncoder, Severity: &loggerLevel})
+
+	// endregion: logger and channels
+	// region: sample messages
+
+	_ = lfc.Out(logLevel, "entry1", "with", "severity")      // write to identified channel with severity
+	_ = log.Out(lfc, logLevel, "entry2", "with", "severity") // write to identified channel with severity
+	_ = log.Out(&Logger, logLevel, "foobar")                 // write to all logger channels with severity
+	_ = Logger.Out(logLevel, *log.ChDefaults.Mark)           // write to all channels with severity
+	// _ = lfc.Out(*log.ChDefaults.Mark)                            // write to identified channel
 	// _ = Logger.Ch[0].Out(*log.ChDefaults.Mark, "bar", 1, 1.1, true) // write directly to the first channel
 	// _ = Logger.Out(*log.ChDefaults.Mark)                            // write to all channels
-	// _ = Logger.Out(log.LOG_ALERT, *log.ChDefaults.Mark)             // write to all channels with severity
-	// _ = log.Out(&Logger, log.LOG_EMERG, "foobar")                   // write to all logger channels with severity
-	// _ = log.Out(nil, log.LOG_EMERG, "quux")                         // write to nowhere
+	// _ = log.Out(nil, LogLevel, "quux")                         // write to nowhere
+
+	// endregion: sample messages
 
 	// endregion: logger
 	// region: db
 
-	// region: config, defaults, dsn
+	// region: defaults, dsn
 
-	dbConfig := db.Config{
+	dbDefaults := db.Config{
 		User:   Config.Entries["dbUser"].Value.(string),
 		Passwd: Config.Entries["dbPasswd"].Value.(string),
 		DBName: Config.Entries["dbName"].Value.(string),
@@ -102,110 +109,91 @@ func main() {
 	// dbConfig.FormatDSN()   // or db.FormatDSN(&dbConfig)
 	// _ = dbConfig.ParseDSN("user:pass@tcp(host)/dbname?allowNativePasswords=true&checkConnLiveness=true&collation=utf8_general_ci&loc=UTC&maxAllowedPacket=4&foo=bar")
 
-	// endregion: config, defaults, dsn
-	// region: MySQL
+	// endregion: defaults, dsn
+	// region: configs
 
-	dbConfig.Type = db.MySQL
-	dbConfig.Addr = "localhost:23306"
-	Db, _ = dbConfig.Open() // or db.Open(dbConfig)
-	dbDrill()
-	defer Db.Close() // or tdb.Close(db)
+	var dbConfigs []db.Config = make([]db.Config, 4)
 
-	// endregion: MySQL
-	// region: MariaDB
+	dbConfigs[0] = dbDefaults
+	dbConfigs[0].Type = db.MariaDB
+	dbConfigs[0].Addr = "localhost:13306"
+	dbConfigs[1] = dbDefaults
+	dbConfigs[1].Type = db.MySQL
+	dbConfigs[1].Addr = "localhost:23306"
+	dbConfigs[2] = dbDefaults
+	dbConfigs[2].Type = db.Postgres
+	dbConfigs[2].Addr = "localhost:15432"
+	dbConfigs[3] = dbDefaults
+	dbConfigs[3].Type = db.SQLite3
+	dbConfigs[3].Addr = "tex.db"
 
-	dbConfig.Type = db.MariaDB
-	dbConfig.Addr = "localhost:13306"
-	dbConfig.DSN = ""
-	Db, _ = dbConfig.Open()
-	dbDrill()
-	defer Db.Close()
+	// endregion: configs
+	// region: db connections and drills
 
-	// endregion: MariaDB
-	// region: PostgreSQL
+	for _, conf := range dbConfigs {
 
-	db.Defaults = db.DefaultsPostgres
-	dbConfig.Type = db.Postgres
-	dbConfig.Addr = "localhost:15432"
-	dbConfig.DSN = ""
-	dbConfig.Params = nil
-	Db, _ = dbConfig.Open()
-	dbDrill()
-	defer Db.Close()
+		// region: connection
 
-	// endregion: Postgres
-	// region: SQLite3
-
-	dbConfig.Type = db.SQLite3
-	dbConfig.Addr = "tex.db"
-	dbConfig.DSN = ""
-	dbConfig.Params = nil
-	Db, err = dbConfig.Open()
-	dbDrill()
-	defer Db.Close()
-
-	// endregion: SQLite3
-	// region: history
-
-	Logger.Out("History len", len(Db.History))
-	for k, v := range Db.History {
-		if v != nil {
-			Logger.Out(k, v.SQL)
-
+		db.Defaults = db.DefaultsMySQL
+		if conf.Type == db.Postgres {
+			db.Defaults = db.DefaultsPostgres
 		}
-	}
-	// endregion: history
 
-	// endregion: db
+		Db, err = conf.Open() // or db.Open(conf)
+		defer Db.Close()      // or db.Close(dbInstance)
+		if err != nil {
+			Logger.Out(logLevel, "db err", err)
+		}
 
-}
+		// endregion: conn
+		// region: Exec()
 
-func dbDrill() {
+		// region: DROP TABLE
 
-	// region: Exec()
+		dropTable := db.Statement{
+			SQL: `DROP TABLE IF EXISTS dummy;`,
+		}
+		dropTable.Exec(Db) // or Db.Exec(dropTable) or db.Exec(Db, dropTable)
+		if dropTable.Err != nil {
+			Logger.Out(db.Drivers[Db.Config.Type], "DROP TABLE ERROR", dropTable.Err)
+		}
 
-	// region: DROP TABLE
+		// endregion: DROP TABLE
+		// region: CREATE TABLE
 
-	dropTable := db.Statement{
-		SQL: `	DROP TABLE IF EXISTS dummy;
-		`,
-	}
-	dropTable.Exec(Db) // or Db.Exec(dropTable) or tdb.Exec(Db, dropTable)
-	// Logger.Out(db.Drivers[Db.Config.Type], "DROP", dropTable.Err)
-
-	// endregion: DROP TABLE
-	// region: CREATE TABLE
-
-	createTable := db.Statement{}
-	if Db.Config.Type == db.Postgres || Db.Config.Type == db.SQLite3 {
-		createTable.SQL = `	CREATE TABLE dummy (
+		createTable := db.Statement{}
+		if Db.Config.Type == db.Postgres || Db.Config.Type == db.SQLite3 {
+			createTable.SQL = `	CREATE TABLE dummy (
 								id		SERIAL			NOT NULL PRIMARY KEY,
 								foo		VARCHAR(32)		NOT NULL
 							);
 		`
-	} else {
-		createTable.SQL = `	CREATE TABLE dummy (
+		} else {
+			createTable.SQL = `	CREATE TABLE dummy (
 								id		INT				NOT NULL AUTO_INCREMENT PRIMARY KEY,
 								foo		VARCHAR(32)		NOT NULL
 							);
 		`
-	}
-	createTable.Exec(Db)
-	// Logger.Out(db.Drivers[Db.Config.Type], "CREATE TABLE", createTable.Err)
+		}
+		createTable.Exec(Db)
+		if createTable.Err != nil {
+			Logger.Out(db.Drivers[Db.Config.Type], "CREATE TABLE ERROR", createTable.Err)
 
-	// endregion: CREATE TABLE
-	// region: INSERT
+		}
 
-	insertRows := db.Statement{
-		Args: []interface{}{
-			1, "foo",
-			2, "bar",
-			4, "baz",
-			5, "xxx",
-		},
-	}
-	if Db.Config.Type == db.Postgres {
-		insertRows.SQL = `	INSERT INTO dummy
+		// endregion: CREATE TABLE
+		// region: INSERT
+
+		insertRows := db.Statement{
+			Args: []interface{}{
+				1, "foo",
+				2, "bar",
+				4, "baz",
+				5, "xxx",
+			},
+		}
+		if Db.Config.Type == db.Postgres {
+			insertRows.SQL = `	INSERT INTO dummy
 								(id, 	foo)
 							VALUES
 								($1,	$2),
@@ -214,8 +202,8 @@ func dbDrill() {
 								($7,	$8)
 							RETURNING id;
 		`
-	} else {
-		insertRows.SQL = `	INSERT INTO dummy
+		} else {
+			insertRows.SQL = `	INSERT INTO dummy
 								(id, 	foo)
 							VALUES
 								(?,		?),
@@ -223,35 +211,57 @@ func dbDrill() {
 								(?,		?),
 								(?,		?);
 		`
+		}
+		insertRows.Exec(Db)
+		Logger.Out(log.LOG_INFO, db.Drivers[Db.Config.Type], "INSERT", insertRows.LastInsertId, insertRows.RowsAffected)
+		if insertRows.Err != nil {
+			Logger.Out(db.Drivers[Db.Config.Type], "INSERT ERROR", createTable.Err)
+		}
+
+		// endregion: INSERT
+		// region: UPDATE
+
+		updateRows := db.Statement{Args: []interface{}{"quux", "baz"}}
+		if Db.Config.Type == db.Postgres {
+			updateRows.SQL = `UPDATE dummy SET foo = $1 WHERE foo = $2;`
+		} else {
+			updateRows.SQL = `UPDATE dummy SET foo = ? WHERE foo = ?;`
+		}
+		updateRows.Exec(Db)
+		Logger.Out(log.LOG_INFO, db.Drivers[Db.Config.Type], "UPDATE", updateRows.LastInsertId, updateRows.RowsAffected)
+		if updateRows.Err != nil {
+			Logger.Out(db.Drivers[Db.Config.Type], "UPDATE ERROR", updateRows.Err)
+		}
+
+		// endregion: UPDATE
+		// region: DELETE
+
+		deleteRows := db.Statement{
+			SQL: `DELETE FROM dummy WHERE id = 4;`,
+		}
+		deleteRows.Exec(Db)
+		Logger.Out(log.LOG_INFO, db.Drivers[Db.Config.Type], "DELETE", deleteRows.Err, deleteRows.LastInsertId, deleteRows.RowsAffected)
+		if deleteRows.Err != nil {
+			Logger.Out(db.Drivers[Db.Config.Type], "DELETE ERROR", deleteRows.Err)
+		}
+
+		// endregion: DELETE
+
+		// endregion: Exec()
+		// region: history
+
+		Logger.Out(logLevel, "HISTORY LENGTH", len(Db.History))
+		for k, v := range Db.History {
+			if v != nil {
+				Logger.Out(logLevel, "HISTORY ENTRY", k, v.SQL)
+			}
+		}
+
+		// endregion: history
 	}
-	insertRows.Exec(Db)
-	// Logger.Out(db.Drivers[Db.Config.Type], "INSERT", insertRows.Err, insertRows.LastInsertId, insertRows.RowsAffected)
 
-	// endregion: INSERT
-	// region: UPDATE
+	// endregion: db connections and drills
 
-	updateRows := db.Statement{Args: []interface{}{"quux", "baz"}}
-	if Db.Config.Type == db.Postgres {
-		updateRows.SQL = `UPDATE dummy SET foo = $1 WHERE foo = $2;`
-	} else {
-		updateRows.SQL = `UPDATE dummy SET foo = ? WHERE foo = ?;`
-	}
-	updateRows.Exec(Db)
-	// Logger.Out(db.Drivers[Db.Config.Type], "UPDATE", updateRows.Err, updateRows.LastInsertId, updateRows.RowsAffected)
-
-	// endregion: UPDATE
-	// region: DELETE
-
-	deleteRows := db.Statement{
-		SQL: `	DELETE FROM dummy
-				WHERE id = 4;
-		`,
-	}
-	deleteRows.Exec(Db)
-	// Logger.Out(db.Drivers[Db.Config.Type], "DELETE", deleteRows.Err, deleteRows.LastInsertId, deleteRows.RowsAffected)
-
-	// endregion: DELETE
-
-	// endregion: Exec()
+	// endregion: db
 
 }

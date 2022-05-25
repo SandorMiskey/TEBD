@@ -202,6 +202,8 @@ var DefaultsPostgres = Config{
 
 	Logger:   nil,
 	Loglevel: &dbDefaultLoglevel,
+
+	History: &dbDefaultHistory,
 }
 
 func SetDefaults(c *Config) {
@@ -439,3 +441,21 @@ func (stmnt *Statement) Exec(db *Db) {
 }
 
 // endregion: exec
+// region: query
+
+func Query(db *Db, st Statement) Statement {
+
+	return st
+}
+
+func (db *Db) Query(st Statement) Statement {
+	return Query(db, st)
+}
+
+func (st *Statement) Query(db *Db) {
+	statement := Query(db, *st)
+	st.Err = statement.Err
+	st.Result = statement.Result
+}
+
+// endregion: query

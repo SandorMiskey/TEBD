@@ -26,6 +26,8 @@ _ = log.Out(&Logger, log.LOG_EMERG, "foobar")                   // write to all 
 
 ## Random improvements to be made
 
+* Logger.HR [hint](https://stackoverflow.com/questions/16569433/get-terminal-size-in-go)
+* max message width (in sample encoder)
 * add taxonomy field
 * extend file and line: func name(?), and full trace
 * welcome/mark/bye severity (if severity present then use Out() otherwise c.Out())
@@ -34,7 +36,7 @@ _ = log.Out(&Logger, log.LOG_EMERG, "foobar")                   // write to all 
 * Ch.Type vs. Ch.Config.Type
 * l.Out() parallel (goroutine) writes (w/ context and errGroup?)
 * endpoints to change/reset config and level
-* scheduled marker (after scheduler is implemented, use mark severity)
+* scheduled marker (after scheduler is implemented, use mark severity, could be a smart function)
 * hooks
 * log rotation
 * output destinations:

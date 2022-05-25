@@ -92,8 +92,13 @@ sqlite3 tex.db
 
 ## Random improvements to be made
 
+* rearrange cmd/main.go db/dbDrill
 * copy from trustone
+  * Exec in TX
   * Query to map
+    * s.Result interface{} vs sql.Result
+    * s.Rows?
+    * s.Map, s.JSON?
   * Query to JSON
   * execTransaction
   * in all above: use type Statement, register last query(s) and result sets
