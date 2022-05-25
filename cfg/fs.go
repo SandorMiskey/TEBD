@@ -234,39 +234,58 @@ func (fs *FlagSet) Parse() (err error) {
 			if err != nil {
 				return err
 			}
-			value := strings.TrimSuffix(string(data), "\n")
+			// value := strings.TrimSuffix(string(data), "\n")
 			linked := strings.TrimSuffix(key, fs.FileSuffix)
 			entry := fs.Entries[linked]
+			entry.Value = strings.TrimSuffix(string(data), "\n")
 
-			switch entry.Type {
-			case "bool":
-				entry.Value, err = strconv.ParseBool(value)
-			case "time.Duration":
-				entry.Value, err = time.ParseDuration(value)
-			case "float64":
-				entry.Value, err = strconv.ParseFloat(value, 64)
-			case "int":
-				entry.Value, err = strconv.Atoi(value)
-			case "string":
-				entry.Value = value
-			default:
-				return fmt.Errorf("invalid flag type: '%s' at %s/%s ", entry.Type, linked, key)
-			}
-			if err != nil {
-				return err
-			}
+			// switch entry.Type {
+			// case "bool":
+			// 	entry.Value, err = strconv.ParseBool(value)
+			// case "time.Duration":
+			// 	entry.Value, err = time.ParseDuration(value)
+			// case "float64":
+			// 	entry.Value, err = strconv.ParseFloat(value, 64)
+			// case "int":
+			// 	entry.Value, err = strconv.Atoi(value)
+			// case "string":
+			// 	entry.Value = value
+			// default:
+			// 	return fmt.Errorf("invalid flag type: '%s' at %s/%s ", entry.Type, linked, key)
+			// }
+			// if err != nil {
+			// 	return err
+			// }
+
 			fs.Entries[linked] = entry
 		}
 	}
 
 	// endregion: file suffix
-	// region: doublecheck types
+	// region: doublecheck and try to correct type mismatches
 
 	for key := range fs.Entries {
 		entry := fs.Entries[key]
 		typ := reflect.TypeOf(entry.Value).String()
 		if typ != entry.Type {
-			return fmt.Errorf("type mismatch for %s: %s vs %s", key, typ, entry.Type)
+			switch entry.Type {
+			case "bool":
+				entry.Value, err = strconv.ParseBool(entry.Value.(string))
+			case "time.Duration":
+				entry.Value, err = time.ParseDuration(entry.Value.(string))
+			case "float64":
+				entry.Value, err = strconv.ParseFloat(entry.Value.(string), 64)
+			case "int":
+				entry.Value, err = strconv.Atoi(entry.Value.(string))
+			case "string":
+				entry.Value = fmt.Sprintf("%s", entry.Value)
+			default:
+				return fmt.Errorf("invalid flag type '%s' for '%s'", entry.Type, key)
+			}
+			if err != nil {
+				return fmt.Errorf("type mismatch for '%s' ('%s' vs '%s'): %s", key, typ, entry.Type, err)
+			}
+			fs.Entries[key] = entry
 		}
 	}
 
