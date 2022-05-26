@@ -7,9 +7,9 @@ import (
 	"log/syslog"
 	"os"
 
-	"github.com/SandorMiskey/TEx-kit/cfg"
+	tecfg "github.com/SandorMiskey/TEx-kit/cfg"
 	tedb "github.com/SandorMiskey/TEx-kit/db"
-	"github.com/SandorMiskey/TEx-kit/log"
+	telog "github.com/SandorMiskey/TEx-kit/log"
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -17,9 +17,9 @@ import (
 // region: global variables
 
 var (
-	Config cfg.Config
+	Config tecfg.Config
 	Db     *tedb.Db
-	Logger log.Logger
+	Logger telog.Logger
 )
 
 // endregion: globals
@@ -28,9 +28,9 @@ func main() {
 
 	// region: config and cli flags
 
-	Config = *cfg.NewConfig(os.Args[0])
+	Config = *tecfg.NewConfig(os.Args[0])
 	fs := Config.NewFlagSet(os.Args[0])
-	fs.Entries = map[string]cfg.Entry{
+	fs.Entries = map[string]tecfg.Entry{
 		// "bool":     {Desc: "bool description", Type: "bool", Def: true},
 		// "duration": {Desc: "duration description", Type: "time.Duration", Def: time.Duration(66000)},
 		// "float64":  {Desc: "float64 desc", Type: "float64", Def: 77.7},
@@ -54,7 +54,7 @@ func main() {
 
 	// region: sample encoder
 
-	var spewEncoder log.Encoder = func(c *log.Ch, n ...interface{}) (s string, e error) {
+	var spewEncoder telog.Encoder = func(c *telog.Ch, n ...interface{}) (s string, e error) {
 		s = "\n"
 		for k, v := range n {
 			if severity, ok := v.(syslog.Priority); ok {
@@ -75,22 +75,22 @@ func main() {
 	logLevel := syslog.Priority(Config.Entries["logLevel"].Value.(int))
 	loggerLevel := syslog.Priority(Config.Entries["loggerLevel"].Value.(int))
 
-	Logger = *log.NewLogger()
+	Logger = *telog.NewLogger()
 	defer Logger.Close()
-	_, _ = Logger.NewCh(log.ChConfig{Type: log.ChSyslog})
-	lfc, _ := Logger.NewCh(log.ChConfig{Encoder: &spewEncoder, Severity: &loggerLevel})
+	_, _ = Logger.NewCh(telog.ChConfig{Type: telog.ChSyslog})
+	lfc, _ := Logger.NewCh(telog.ChConfig{Encoder: &spewEncoder, Severity: &loggerLevel})
 
 	// endregion: logger and channels
 	// region: sample messages
 
-	_ = lfc.Out(logLevel, "entry1", "with", "severity")      // write to identified channel with severity
-	_ = log.Out(lfc, logLevel, "entry2", "with", "severity") // write to identified channel with severity
-	_ = log.Out(&Logger, logLevel, "foobar")                 // write to all logger channels with severity
-	_ = Logger.Out(logLevel, *log.ChDefaults.Mark)           // write to all channels with severity
-	// _ = lfc.Out(*log.ChDefaults.Mark)                            // write to identified channel
-	// _ = Logger.Ch[0].Out(*log.ChDefaults.Mark, "bar", 1, 1.1, true) // write directly to the first channel
-	// _ = Logger.Out(*log.ChDefaults.Mark)                            // write to all channels
-	// _ = log.Out(nil, LogLevel, "quux")                         // write to nowhere
+	_ = lfc.Out(logLevel, "entry1", "with", "severity")        // write to identified channel with severity
+	_ = telog.Out(lfc, logLevel, "entry2", "with", "severity") // write to identified channel with severity
+	_ = telog.Out(&Logger, logLevel, "foobar")                 // write to all logger channels with severity
+	_ = Logger.Out(logLevel, *telog.ChDefaults.Mark)           // write to all channels with severity
+	// _ = lfc.Out(*telog.ChDefaults.Mark)                            // write to identified channel
+	// _ = Logger.Ch[0].Out(*telog.ChDefaults.Mark, "bar", 1, 1.1, true) // write directly to the first channel
+	// _ = Logger.Out(*telog.ChDefaults.Mark)                            // write to all channels
+	// _ = telog.Out(nil, LogLevel, "quux")                         // write to nowhere
 
 	// endregion: sample messages
 
@@ -213,7 +213,7 @@ func main() {
 		`
 		}
 		insertRows.Exec(Db)
-		Logger.Out(log.LOG_INFO, tedb.Drivers[Db.Config.Type], "INSERT", insertRows.LastInsertId, insertRows.RowsAffected)
+		Logger.Out(logLevel, tedb.Drivers[Db.Config.Type], "INSERT", insertRows.LastInsertId, insertRows.RowsAffected)
 		if insertRows.Err != nil {
 			Logger.Out(tedb.Drivers[Db.Config.Type], "INSERT ERROR", createTable.Err)
 		}
@@ -228,7 +228,7 @@ func main() {
 			updateRows.SQL = `UPDATE dummy SET foo = ? WHERE foo = ?;`
 		}
 		updateRows.Exec(Db)
-		Logger.Out(log.LOG_INFO, tedb.Drivers[Db.Config.Type], "UPDATE", updateRows.LastInsertId, updateRows.RowsAffected)
+		Logger.Out(logLevel, tedb.Drivers[Db.Config.Type], "UPDATE", updateRows.LastInsertId, updateRows.RowsAffected)
 		if updateRows.Err != nil {
 			Logger.Out(tedb.Drivers[Db.Config.Type], "UPDATE ERROR", updateRows.Err)
 		}
@@ -240,7 +240,7 @@ func main() {
 			SQL: `DELETE FROM dummy WHERE id = 4;`,
 		}
 		deleteRows.Exec(Db)
-		Logger.Out(log.LOG_INFO, tedb.Drivers[Db.Config.Type], "DELETE", deleteRows.Err, deleteRows.LastInsertId, deleteRows.RowsAffected)
+		Logger.Out(logLevel, tedb.Drivers[Db.Config.Type], "DELETE", deleteRows.Err, deleteRows.LastInsertId, deleteRows.RowsAffected)
 		if deleteRows.Err != nil {
 			Logger.Out(tedb.Drivers[Db.Config.Type], "DELETE ERROR", deleteRows.Err)
 		}
