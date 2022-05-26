@@ -1,6 +1,6 @@
 // region: packages
 
-package tedb
+package db
 
 import (
 	"database/sql"

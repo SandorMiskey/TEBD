@@ -13,7 +13,7 @@
 // endregion: credits
 // region: packages
 
-package tedb
+package db
 
 import (
 	"bytes"
