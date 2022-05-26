@@ -3,7 +3,8 @@
 		"erba",
 		"fasthttprouter",
 		"portainer",
-		"tecommerce"
+		"tecommerce",
+		"tedb"
 	],
 	"cSpell.ignoreWords": [
 		"Atoi",

@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/SandorMiskey/TEx-kit/cfg"
-	"github.com/SandorMiskey/TEx-kit/db"
+	tedb "github.com/SandorMiskey/TEx-kit/db"
 	"github.com/SandorMiskey/TEx-kit/log"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -18,7 +18,7 @@ import (
 
 var (
 	Config cfg.Config
-	Db     *db.Db
+	Db     *tedb.Db
 	Logger log.Logger
 )
 
@@ -99,7 +99,7 @@ func main() {
 
 	// region: defaults, dsn
 
-	dbDefaults := db.Config{
+	dbDefaults := tedb.Config{
 		User:   Config.Entries["dbUser"].Value.(string),
 		Passwd: Config.Entries["dbPasswd"].Value.(string),
 		DBName: Config.Entries["dbName"].Value.(string),
@@ -112,19 +112,19 @@ func main() {
 	// endregion: defaults, dsn
 	// region: configs
 
-	var dbConfigs []db.Config = make([]db.Config, 4)
+	var dbConfigs []tedb.Config = make([]tedb.Config, 4)
 
 	dbConfigs[0] = dbDefaults
-	dbConfigs[0].Type = db.MariaDB
+	dbConfigs[0].Type = tedb.MariaDB
 	dbConfigs[0].Addr = "localhost:13306"
 	dbConfigs[1] = dbDefaults
-	dbConfigs[1].Type = db.MySQL
+	dbConfigs[1].Type = tedb.MySQL
 	dbConfigs[1].Addr = "localhost:23306"
 	dbConfigs[2] = dbDefaults
-	dbConfigs[2].Type = db.Postgres
+	dbConfigs[2].Type = tedb.Postgres
 	dbConfigs[2].Addr = "localhost:15432"
 	dbConfigs[3] = dbDefaults
-	dbConfigs[3].Type = db.SQLite3
+	dbConfigs[3].Type = tedb.SQLite3
 	dbConfigs[3].Addr = "tex.db"
 
 	// endregion: configs
@@ -134,9 +134,9 @@ func main() {
 
 		// region: connection
 
-		db.Defaults = db.DefaultsMySQL
-		if conf.Type == db.Postgres {
-			db.Defaults = db.DefaultsPostgres
+		tedb.Defaults = tedb.DefaultsMySQL
+		if conf.Type == tedb.Postgres {
+			tedb.Defaults = tedb.DefaultsPostgres
 		}
 
 		Db, err = conf.Open() // or db.Open(conf)
@@ -150,19 +150,19 @@ func main() {
 
 		// region: DROP TABLE
 
-		dropTable := db.Statement{
+		dropTable := tedb.Statement{
 			SQL: `DROP TABLE IF EXISTS dummy;`,
 		}
 		dropTable.Exec(Db) // or Db.Exec(dropTable) or db.Exec(Db, dropTable)
 		if dropTable.Err != nil {
-			Logger.Out(db.Drivers[Db.Config.Type], "DROP TABLE ERROR", dropTable.Err)
+			Logger.Out(tedb.Drivers[Db.Config.Type], "DROP TABLE ERROR", dropTable.Err)
 		}
 
 		// endregion: DROP TABLE
 		// region: CREATE TABLE
 
-		createTable := db.Statement{}
-		if Db.Config.Type == db.Postgres || Db.Config.Type == db.SQLite3 {
+		createTable := tedb.Statement{}
+		if Db.Config.Type == tedb.Postgres || Db.Config.Type == tedb.SQLite3 {
 			createTable.SQL = `	CREATE TABLE dummy (
 								id		SERIAL			NOT NULL PRIMARY KEY,
 								foo		VARCHAR(32)		NOT NULL
@@ -177,14 +177,14 @@ func main() {
 		}
 		createTable.Exec(Db)
 		if createTable.Err != nil {
-			Logger.Out(db.Drivers[Db.Config.Type], "CREATE TABLE ERROR", createTable.Err)
+			Logger.Out(tedb.Drivers[Db.Config.Type], "CREATE TABLE ERROR", createTable.Err)
 
 		}
 
 		// endregion: CREATE TABLE
 		// region: INSERT
 
-		insertRows := db.Statement{
+		insertRows := tedb.Statement{
 			Args: []interface{}{
 				1, "foo",
 				2, "bar",
@@ -192,7 +192,7 @@ func main() {
 				5, "xxx",
 			},
 		}
-		if Db.Config.Type == db.Postgres {
+		if Db.Config.Type == tedb.Postgres {
 			insertRows.SQL = `	INSERT INTO dummy
 								(id, 	foo)
 							VALUES
@@ -213,36 +213,36 @@ func main() {
 		`
 		}
 		insertRows.Exec(Db)
-		Logger.Out(log.LOG_INFO, db.Drivers[Db.Config.Type], "INSERT", insertRows.LastInsertId, insertRows.RowsAffected)
+		Logger.Out(log.LOG_INFO, tedb.Drivers[Db.Config.Type], "INSERT", insertRows.LastInsertId, insertRows.RowsAffected)
 		if insertRows.Err != nil {
-			Logger.Out(db.Drivers[Db.Config.Type], "INSERT ERROR", createTable.Err)
+			Logger.Out(tedb.Drivers[Db.Config.Type], "INSERT ERROR", createTable.Err)
 		}
 
 		// endregion: INSERT
 		// region: UPDATE
 
-		updateRows := db.Statement{Args: []interface{}{"quux", "baz"}}
-		if Db.Config.Type == db.Postgres {
+		updateRows := tedb.Statement{Args: []interface{}{"quux", "baz"}}
+		if Db.Config.Type == tedb.Postgres {
 			updateRows.SQL = `UPDATE dummy SET foo = $1 WHERE foo = $2;`
 		} else {
 			updateRows.SQL = `UPDATE dummy SET foo = ? WHERE foo = ?;`
 		}
 		updateRows.Exec(Db)
-		Logger.Out(log.LOG_INFO, db.Drivers[Db.Config.Type], "UPDATE", updateRows.LastInsertId, updateRows.RowsAffected)
+		Logger.Out(log.LOG_INFO, tedb.Drivers[Db.Config.Type], "UPDATE", updateRows.LastInsertId, updateRows.RowsAffected)
 		if updateRows.Err != nil {
-			Logger.Out(db.Drivers[Db.Config.Type], "UPDATE ERROR", updateRows.Err)
+			Logger.Out(tedb.Drivers[Db.Config.Type], "UPDATE ERROR", updateRows.Err)
 		}
 
 		// endregion: UPDATE
 		// region: DELETE
 
-		deleteRows := db.Statement{
+		deleteRows := tedb.Statement{
 			SQL: `DELETE FROM dummy WHERE id = 4;`,
 		}
 		deleteRows.Exec(Db)
-		Logger.Out(log.LOG_INFO, db.Drivers[Db.Config.Type], "DELETE", deleteRows.Err, deleteRows.LastInsertId, deleteRows.RowsAffected)
+		Logger.Out(log.LOG_INFO, tedb.Drivers[Db.Config.Type], "DELETE", deleteRows.Err, deleteRows.LastInsertId, deleteRows.RowsAffected)
 		if deleteRows.Err != nil {
-			Logger.Out(db.Drivers[Db.Config.Type], "DELETE ERROR", deleteRows.Err)
+			Logger.Out(tedb.Drivers[Db.Config.Type], "DELETE ERROR", deleteRows.Err)
 		}
 
 		// endregion: DELETE
