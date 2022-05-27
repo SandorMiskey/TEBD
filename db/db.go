@@ -67,7 +67,7 @@ type Statement struct {
 	LastInsertId int64
 	Unprotected  bool
 	SQL          string
-	Result       interface{}
+	Result       sql.Result
 }
 
 type Tx struct {
@@ -373,10 +373,6 @@ func (db *Db) Begin() (*Tx, error) {
 	return Begin(db)
 }
 
-// func (db *Db) Tx() *Tx {
-
-// }
-
 // endregion: tx
 // region: history
 
@@ -476,7 +472,7 @@ func Exec(db *Db, stmnt Statement) Statement {
 	// region: last id and rows affected
 
 	if db.Config.Type != Postgres {
-		stmnt.LastInsertId, err = stmnt.Result.(sql.Result).LastInsertId()
+		stmnt.LastInsertId, err = stmnt.Result.LastInsertId()
 		if err != nil {
 			stmnt.Err = fmt.Errorf("%s: %w", ErrExecLastIdFailed, err)
 			log.Out(db.Config.Logger, *db.Config.Loglevel, stmnt.Err)
@@ -484,7 +480,7 @@ func Exec(db *Db, stmnt Statement) Statement {
 		}
 	}
 
-	stmnt.RowsAffected, err = stmnt.Result.(sql.Result).RowsAffected()
+	stmnt.RowsAffected, err = stmnt.Result.RowsAffected()
 	if err != nil {
 		stmnt.Err = fmt.Errorf("%s: %w", ErrExecRowsAffectedFailed, err)
 		log.Out(db.Config.Logger, *db.Config.Loglevel, stmnt.Err)
@@ -508,6 +504,12 @@ func (stmnt *Statement) Exec(db *Db) {
 	stmnt.LastInsertId = statement.LastInsertId
 	stmnt.Result = statement.Result
 }
+
+// TODO
+// Db + Tx => interface
+// Exec() handle Tx
+// Tx.Exec
+// Statement.Exec() handle Tx
 
 // endregion: exec
 // region: query
