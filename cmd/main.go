@@ -132,6 +132,8 @@ func main() {
 
 	for _, conf := range dbConfigs {
 
+		Logger.Out(logLevel, "=== === === === >>> "+tedb.Drivers[conf.Type]+" DRILL HAS BEGUN <<< === === === ===")
+
 		// region: connection
 
 		tedb.Defaults = tedb.DefaultsMySQL
@@ -142,7 +144,7 @@ func main() {
 		Db, err = conf.Open() // or db.Open(conf)
 		defer Db.Close()      // or db.Close(dbInstance)
 		if err != nil {
-			Logger.Out(logLevel, "db err", err)
+			Logger.Out(logLevel, "db.Open() ERROR", err)
 		}
 
 		// endregion: conn
@@ -155,34 +157,42 @@ func main() {
 		}
 		dropTable.Exec(Db) // or Db.Exec(dropTable) or db.Exec(Db, dropTable)
 		if dropTable.Err != nil {
-			Logger.Out(tedb.Drivers[Db.Config.Type], "DROP TABLE ERROR", dropTable.Err)
+			Logger.Out("DROP TABLE ERROR", dropTable.Err)
 		}
 
 		// endregion: DROP TABLE
 		// region: CREATE TABLE
 
 		createTable := tedb.Statement{}
-		if Db.Config.Type == tedb.Postgres || Db.Config.Type == tedb.SQLite3 {
+		if Db.Config.Type == tedb.Postgres {
 			createTable.SQL = `	CREATE TABLE dummy (
-								id		SERIAL			NOT NULL PRIMARY KEY,
-								foo		VARCHAR(32)		NOT NULL
-							);
-		`
+									id		SERIAL			NOT NULL PRIMARY KEY,
+									foo		VARCHAR(32)		NOT NULL
+								);`
+		} else if Db.Config.Type == tedb.SQLite3 {
+			createTable.SQL = `	CREATE TABLE dummy (
+									id		INTEGER			NOT NULL PRIMARY KEY,
+									foo		VARCHAR(32)		NOT NULL
+								);`
 		} else {
 			createTable.SQL = `	CREATE TABLE dummy (
-								id		INT				NOT NULL AUTO_INCREMENT PRIMARY KEY,
-								foo		VARCHAR(32)		NOT NULL
-							);
-		`
+									id		INT				NOT NULL AUTO_INCREMENT PRIMARY KEY,
+									foo		VARCHAR(32)		NOT NULL
+								);`
 		}
 		createTable.Exec(Db)
 		if createTable.Err != nil {
-			Logger.Out(tedb.Drivers[Db.Config.Type], "CREATE TABLE ERROR", createTable.Err)
+			Logger.Out("CREATE TABLE ERROR", createTable.Err)
 
 		}
 
 		// endregion: CREATE TABLE
-		// region: INSERT
+		// region: INSERT (with new Tx)
+
+		tx, err := Db.Begin()
+		if err != nil {
+			Logger.Out(logLevel, "TX ERROR", err)
+		}
 
 		insertRows := tedb.Statement{
 			Args: []interface{}{
@@ -213,9 +223,9 @@ func main() {
 		`
 		}
 		insertRows.Exec(Db)
-		Logger.Out(logLevel, tedb.Drivers[Db.Config.Type], "INSERT", insertRows.LastInsertId, insertRows.RowsAffected)
+		Logger.Out(logLevel, fmt.Sprintf("INSERT (LastInsertId: %d, RowsAffected: %d)", insertRows.LastInsertId, insertRows.RowsAffected))
 		if insertRows.Err != nil {
-			Logger.Out(tedb.Drivers[Db.Config.Type], "INSERT ERROR", createTable.Err)
+			Logger.Out("INSERT ERROR", createTable.Err)
 		}
 
 		// endregion: INSERT
@@ -228,32 +238,34 @@ func main() {
 			updateRows.SQL = `UPDATE dummy SET foo = ? WHERE foo = ?;`
 		}
 		updateRows.Exec(Db)
-		Logger.Out(logLevel, tedb.Drivers[Db.Config.Type], "UPDATE", updateRows.LastInsertId, updateRows.RowsAffected)
+		Logger.Out(logLevel, fmt.Sprintf("UPDATE (LastInsertId: %d, RowsAffected: %d)", updateRows.LastInsertId, updateRows.RowsAffected))
 		if updateRows.Err != nil {
-			Logger.Out(tedb.Drivers[Db.Config.Type], "UPDATE ERROR", updateRows.Err)
+			Logger.Out("UPDATE ERROR", updateRows.Err)
 		}
 
 		// endregion: UPDATE
-		// region: DELETE
+		// region: DELETE (and commit Tx)
 
 		deleteRows := tedb.Statement{
 			SQL: `DELETE FROM dummy WHERE id = 4;`,
 		}
 		deleteRows.Exec(Db)
-		Logger.Out(logLevel, tedb.Drivers[Db.Config.Type], "DELETE", deleteRows.Err, deleteRows.LastInsertId, deleteRows.RowsAffected)
+		Logger.Out(logLevel, fmt.Sprintf("DELETE (LastInsertId: %d, RowsAffected: %d)", deleteRows.LastInsertId, deleteRows.RowsAffected))
 		if deleteRows.Err != nil {
-			Logger.Out(tedb.Drivers[Db.Config.Type], "DELETE ERROR", deleteRows.Err)
+			Logger.Out("DELETE ERROR", deleteRows.Err)
 		}
+
+		tx.Session.Commit()
 
 		// endregion: DELETE
 
 		// endregion: Exec()
 		// region: history
 
-		Logger.Out(logLevel, "HISTORY LENGTH", len(Db.History))
+		Logger.Out(logLevel, fmt.Sprintf("HISTORY LENGTH: %d", len(Db.History)))
 		for k, v := range Db.History {
 			if v != nil {
-				Logger.Out(logLevel, "HISTORY ENTRY", k, v.SQL)
+				Logger.Out(logLevel, fmt.Sprintf("HISTORY ENTRY #%d: %s", k, v.SQL))
 			}
 		}
 

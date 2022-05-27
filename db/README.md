@@ -104,6 +104,7 @@ sqlite3 tex.db
   * in all above: prepared statements
   * do batches
   * typed result sets where applicable
+* db.Statement initialization from JSON
 * support context.WithTimeout() in queries
 * setters (like Db.SetLogger()), reset (re-parse config)
 * connection catalog w/ close all

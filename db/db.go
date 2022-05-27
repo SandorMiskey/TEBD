@@ -70,6 +70,12 @@ type Statement struct {
 	Result       interface{}
 }
 
+type Tx struct {
+	Db      *Db
+	History []*Statement
+	Session *sql.Tx
+}
+
 // endregion: types
 // region: (pseudo-)constants
 
@@ -95,6 +101,7 @@ var (
 	ErrExecFailed             = errors.New("db.Exec() failed")
 	ErrExecLastIdFailed       = errors.New("db.Exec was successfull but getting LastInsertId failed")
 	ErrExecRowsAffectedFailed = errors.New("db.Exec was successfull but getting RowsAffected failed")
+	ErrInvalidDbOrTx          = errors.New("invalid *Db or *Tx")
 	ErrInvalidDbType          = errors.New("invalid db type")
 	ErrInvalidDSNAddr         = errors.New("invalid DSN: network address not terminated (missing closing brace)")
 	ErrInvalidDSNNoSlash      = errors.New("invalid DSN: missing the slash separating the database name")
@@ -348,17 +355,80 @@ func (db *Db) Close() error {
 }
 
 // endregion: open/close
+// region: tx
+
+func Begin(db *Db) (*Tx, error) {
+	session, err := db.Conn.Begin()
+	if err != nil {
+		log.Out(db.Config.Logger, *db.Config.Loglevel, err)
+		return nil, err
+	}
+
+	tx := Tx{Db: db, Session: session}
+	tx.History = make([]*Statement, 0, *db.Config.History)
+	return &tx, nil
+}
+
+func (db *Db) Begin() (*Tx, error) {
+	return Begin(db)
+}
+
+// func (db *Db) Tx() *Tx {
+
+// }
+
+// endregion: tx
 // region: history
 
+func HistoryAppend(i interface{}, s *Statement) error {
+	var h []*Statement
+	var l int
+	var c interface{}
+	var p syslog.Priority
+
+	switch i.(type) {
+	case *Db:
+		c = i.(*Db).Config.Logger
+		h = i.(*Db).History
+		l = *i.(*Db).Config.History
+		p = *i.(*Db).Config.Loglevel
+	case *Tx:
+		c = i.(*Tx).Db.Config.Logger
+		h = i.(*Tx).History
+		l = *i.(*Tx).Db.Config.History
+		p = *i.(*Tx).Db.Config.Loglevel
+	default:
+		log.Out(c, p, ErrInvalidDbOrTx, s.SQL)
+		return ErrInvalidDbOrTx
+
+	}
+
+	if len(h) < l {
+		l = len(h)
+	}
+	if len(h) != 0 {
+		h = h[:l]
+	}
+	switch i.(type) {
+	case *Db:
+		i.(*Db).History = append([]*Statement{s}, h...)
+	case *Tx:
+		i.(*Tx).History = append([]*Statement{s}, h...)
+	}
+
+	return nil
+}
+
 func (db *Db) HistoryAppend(s *Statement) {
-	x := *db.Config.History
-	if len(db.History) < *db.Config.History {
-		x = len(db.History)
-	}
-	if len(db.History) != 0 {
-		db.History = db.History[:x]
-	}
-	db.History = append([]*Statement{s}, db.History...)
+	s.Err = HistoryAppend(db, s)
+}
+
+func (tx *Tx) HistoryAppend(s *Statement) {
+	s.Err = HistoryAppend(tx, s)
+}
+
+func (s *Statement) HistoryAppend(i interface{}) {
+	s.Err = HistoryAppend(i, s)
 }
 
 // endregion: history
@@ -437,7 +507,6 @@ func (stmnt *Statement) Exec(db *Db) {
 	stmnt.RowsAffected = statement.RowsAffected
 	stmnt.LastInsertId = statement.LastInsertId
 	stmnt.Result = statement.Result
-	db.History[0] = stmnt
 }
 
 // endregion: exec
