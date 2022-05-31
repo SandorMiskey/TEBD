@@ -20,8 +20,6 @@ import (
 // endregion: packages
 // region: types
 
-type DbType int
-
 type Config struct {
 
 	// region: dsn
@@ -54,26 +52,44 @@ type Config struct {
 
 }
 
+type DbType int
+
 type Db struct {
-	Config  *Config
-	Conn    *sql.DB
-	History []*Statement
+	config  *Config
+	conn    *sql.DB
+	history History
 }
+
+// type ExecAble interface {
+// 	Config() *Config
+// 	Conn() *sql.DB
+// 	History() History
+// }
+
+type hasHistory interface {
+	appendHistory(s *Statement)
+	Config() *Config
+	History() History
+	setHistory(*History)
+}
+
+type History []*Statement
 
 type Statement struct {
 	Args         []interface{}
-	RowsAffected int64
 	Err          error
 	LastInsertId int64
-	Unprotected  bool
-	SQL          string
 	Result       sql.Result
+	RowsAffected int64
+	SQL          string
+	Tx           *Tx
+	Unprotected  bool
 }
 
 type Tx struct {
-	Db      *Db
-	History []*Statement
-	Session *sql.Tx
+	db      *Db
+	history History
+	session *sql.Tx
 }
 
 // endregion: types
@@ -101,7 +117,6 @@ var (
 	ErrExecFailed             = errors.New("db.Exec() failed")
 	ErrExecLastIdFailed       = errors.New("db.Exec was successfull but getting LastInsertId failed")
 	ErrExecRowsAffectedFailed = errors.New("db.Exec was successfull but getting RowsAffected failed")
-	ErrInvalidDbOrTx          = errors.New("invalid *Db or *Tx")
 	ErrInvalidDbType          = errors.New("invalid db type")
 	ErrInvalidDSNAddr         = errors.New("invalid DSN: network address not terminated (missing closing brace)")
 	ErrInvalidDSNNoSlash      = errors.New("invalid DSN: missing the slash separating the database name")
@@ -131,7 +146,7 @@ var (
 
 	dbDefaultLoglevel syslog.Priority = log.LOG_DEBUG
 
-	dbDefaultHistory int = 10
+	dbDefaultHistory int = 5
 )
 
 var Defaults = DefaultsMySQL
@@ -273,7 +288,9 @@ func (c *Config) SetDefaults() {
 // }
 
 // endregion: logger
-// region: open/close
+// region: db
+
+// region: open
 
 func Open(cs ...*Config) (*Db, error) {
 
@@ -305,26 +322,26 @@ func Open(cs ...*Config) (*Db, error) {
 		return nil, fmt.Errorf("%s: %v", ErrInvalidDbType, c.Type)
 	}
 
-	db := Db{Config: c}
+	db := Db{config: c}
 	conn, e := sql.Open(Drivers[c.Type], c.DSN)
 	if e != nil {
 		log.Out(c.Logger, *c.Loglevel, e, c)
 		return nil, e
 	}
-	db.Conn = conn
-	db.Conn.SetMaxOpenConns(*c.MaxOpenConns)
-	db.Conn.SetMaxIdleConns(*c.MaxIdleConns)
-	db.Conn.SetConnMaxLifetime(*c.MaxLifetime)
+	db.conn = conn
+	db.conn.SetMaxOpenConns(*c.MaxOpenConns)
+	db.conn.SetMaxIdleConns(*c.MaxIdleConns)
+	db.conn.SetConnMaxLifetime(*c.MaxLifetime)
 
-	db.History = make([]*Statement, 0, *db.Config.History)
+	db.history = make([]*Statement, 0, *db.config.History)
 
 	// endregion: connect
 	// region: ping
 
-	e = db.Conn.Ping()
+	e = db.conn.Ping()
 	if e != nil {
 		log.Out(c.Logger, *c.Loglevel, e, c)
-		db.Conn.Close()
+		db.conn.Close()
 		return nil, e
 	}
 	log.Out(c.Logger, *c.Loglevel, fmt.Sprintf("connection is established to %s with %s driver", c.DSN, Drivers[c.Type]))
@@ -338,15 +355,18 @@ func (c *Config) Open() (*Db, error) {
 	return Open(c)
 }
 
+// endregion: open
+// region: close
+
 func Close(db *Db) error {
-	e := db.Conn.Close()
+	e := db.Conn().Close()
 	if e != nil {
-		log.Out(db.Config.Logger, *db.Config.Loglevel, e, db)
+		log.Out(db.Config().Logger, *db.Config().Loglevel, e, db)
 		return e
 	}
-	conf := *db.Config
+	conf := *db.Config()
 	conf.Logger = nil
-	log.Out(db.Config.Logger, *db.Config.Loglevel, "database connection closed", conf)
+	log.Out(db.Config().Logger, *db.Config().Loglevel, "database connection closed", conf)
 	return nil
 }
 
@@ -354,18 +374,38 @@ func (db *Db) Close() error {
 	return Close(db)
 }
 
-// endregion: open/close
+// endregion: close
+// region: getters
+
+func (db *Db) Config() *Config {
+	return db.config
+}
+
+func (db *Db) Conn() *sql.DB {
+	return db.conn
+}
+
+func (db *Db) History() History {
+	return db.history
+}
+
+// endregion: getters
+
+// endregion: db
 // region: tx
 
+// region: begin
+
 func Begin(db *Db) (*Tx, error) {
-	session, err := db.Conn.Begin()
+	session, err := db.Conn().Begin()
 	if err != nil {
-		log.Out(db.Config.Logger, *db.Config.Loglevel, err)
+		log.Out(db.Config().Logger, *db.Config().Loglevel, err)
 		return nil, err
 	}
 
-	tx := Tx{Db: db, Session: session}
-	tx.History = make([]*Statement, 0, *db.Config.History)
+	tx := Tx{db: db, session: session}
+	tx.history = make([]*Statement, 0, *db.Config().History)
+	tx.appendHistory(&Statement{SQL: "BEGIN", Tx: &tx})
 	return &tx, nil
 }
 
@@ -373,31 +413,37 @@ func (db *Db) Begin() (*Tx, error) {
 	return Begin(db)
 }
 
+// endregion: begin
+// region: getters
+
+func (tx *Tx) Config() *Config {
+	return tx.Db().Config()
+}
+
+func (tx *Tx) Conn() *sql.DB {
+	return tx.Db().Conn()
+}
+
+func (tx *Tx) Db() *Db {
+	return tx.db
+}
+
+func (tx *Tx) History() History {
+	return tx.history
+}
+
+func (tx *Tx) Session() *sql.Tx {
+	return tx.session
+}
+
+// endregion: getters
+
 // endregion: tx
 // region: history
 
-func HistoryAppend(i interface{}, s *Statement) error {
-	var h []*Statement
-	var l int
-	var c interface{}
-	var p syslog.Priority
-
-	switch i.(type) {
-	case *Db:
-		c = i.(*Db).Config.Logger
-		h = i.(*Db).History
-		l = *i.(*Db).Config.History
-		p = *i.(*Db).Config.Loglevel
-	case *Tx:
-		c = i.(*Tx).Db.Config.Logger
-		h = i.(*Tx).History
-		l = *i.(*Tx).Db.Config.History
-		p = *i.(*Tx).Db.Config.Loglevel
-	default:
-		log.Out(c, p, ErrInvalidDbOrTx, s.SQL)
-		return ErrInvalidDbOrTx
-
-	}
+func appendHistory(i hasHistory, s *Statement) {
+	var h History = i.History()
+	var l int = *i.Config().History - 1
 
 	if len(h) < l {
 		l = len(h)
@@ -405,33 +451,37 @@ func HistoryAppend(i interface{}, s *Statement) error {
 	if len(h) != 0 {
 		h = h[:l]
 	}
-	switch i.(type) {
-	case *Db:
-		i.(*Db).History = append([]*Statement{s}, h...)
-	case *Tx:
-		i.(*Tx).History = append([]*Statement{s}, h...)
-	}
 
-	return nil
+	h = append(History{s}, h...)
+	i.setHistory(&h)
 }
 
-func (db *Db) HistoryAppend(s *Statement) {
-	s.Err = HistoryAppend(db, s)
+func (db *Db) appendHistory(s *Statement) {
+	appendHistory(db, s)
 }
 
-func (tx *Tx) HistoryAppend(s *Statement) {
-	s.Err = HistoryAppend(tx, s)
+func (tx *Tx) appendHistory(s *Statement) {
+	appendHistory(tx, s)
+	appendHistory(tx.Db(), s)
 }
 
-func (s *Statement) HistoryAppend(i interface{}) {
-	s.Err = HistoryAppend(i, s)
+func (s *Statement) appendHistory(i hasHistory) {
+	i.appendHistory(s)
+}
+
+func (db *Db) setHistory(h *History) {
+	db.history = *h
+}
+
+func (tx *Tx) setHistory(h *History) {
+	tx.history = *h
 }
 
 // endregion: history
 // region: exec
 
 func Exec(db *Db, stmnt Statement) Statement {
-	log.Out(db.Config.Logger, *db.Config.Loglevel, MsgExecStatement, stmnt)
+	log.Out(db.Config().Logger, *db.Config().Loglevel, MsgExecStatement, stmnt)
 
 	// region: xss protection
 
@@ -454,28 +504,28 @@ func Exec(db *Db, stmnt Statement) Statement {
 			}
 		}
 		stmnt.SQL = template.HTMLEscaper(stmnt.SQL)
-		log.Out(db.Config.Logger, *db.Config.Loglevel, MsgExecStatementEscaped, stmnt)
+		log.Out(db.Config().Logger, *db.Config().Loglevel, MsgExecStatementEscaped, stmnt)
 	}
 
 	// endregion: injection protection
 	// region: actual
 
 	var err error
-	stmnt.Result, err = db.Conn.Exec(stmnt.SQL, stmnt.Args...)
+	stmnt.Result, err = db.Conn().Exec(stmnt.SQL, stmnt.Args...)
 	if err != nil {
 		stmnt.Err = fmt.Errorf("%s: %w", ErrExecFailed, err)
-		log.Out(db.Config.Logger, *db.Config.Loglevel, stmnt.Err)
+		log.Out(db.Config().Logger, *db.Config().Loglevel, stmnt.Err)
 		return stmnt
 	}
 
 	// endregion: actual
 	// region: last id and rows affected
 
-	if db.Config.Type != Postgres {
+	if db.Config().Type != Postgres {
 		stmnt.LastInsertId, err = stmnt.Result.LastInsertId()
 		if err != nil {
 			stmnt.Err = fmt.Errorf("%s: %w", ErrExecLastIdFailed, err)
-			log.Out(db.Config.Logger, *db.Config.Loglevel, stmnt.Err)
+			log.Out(db.Config().Logger, *db.Config().Loglevel, stmnt.Err)
 			return stmnt
 		}
 	}
@@ -483,13 +533,13 @@ func Exec(db *Db, stmnt Statement) Statement {
 	stmnt.RowsAffected, err = stmnt.Result.RowsAffected()
 	if err != nil {
 		stmnt.Err = fmt.Errorf("%s: %w", ErrExecRowsAffectedFailed, err)
-		log.Out(db.Config.Logger, *db.Config.Loglevel, stmnt.Err)
+		log.Out(db.Config().Logger, *db.Config().Loglevel, stmnt.Err)
 		return stmnt
 	}
 
 	// endregion: last id and rows affected
 
-	db.HistoryAppend(&stmnt)
+	db.appendHistory(&stmnt)
 	return stmnt
 }
 
@@ -504,12 +554,6 @@ func (stmnt *Statement) Exec(db *Db) {
 	stmnt.LastInsertId = statement.LastInsertId
 	stmnt.Result = statement.Result
 }
-
-// TODO
-// Db + Tx => interface
-// Exec() handle Tx
-// Tx.Exec
-// Statement.Exec() handle Tx
 
 // endregion: exec
 // region: query

@@ -100,10 +100,10 @@ func main() {
 	// region: defaults, dsn
 
 	dbDefaults := tedb.Config{
-		User:   Config.Entries["dbUser"].Value.(string),
-		Passwd: Config.Entries["dbPasswd"].Value.(string),
 		DBName: Config.Entries["dbName"].Value.(string),
 		Logger: Logger,
+		Passwd: Config.Entries["dbPasswd"].Value.(string),
+		User:   Config.Entries["dbUser"].Value.(string),
 	}
 	// dbConfig.SetDefaults() // or db.SetDefaults(&dbConfig) is also available
 	// dbConfig.FormatDSN()   // or db.FormatDSN(&dbConfig)
@@ -164,12 +164,12 @@ func main() {
 		// region: CREATE TABLE
 
 		createTable := tedb.Statement{}
-		if Db.Config.Type == tedb.Postgres {
+		if Db.Config().Type == tedb.Postgres {
 			createTable.SQL = `	CREATE TABLE dummy (
 									id		SERIAL			NOT NULL PRIMARY KEY,
 									foo		VARCHAR(32)		NOT NULL
 								);`
-		} else if Db.Config.Type == tedb.SQLite3 {
+		} else if Db.Config().Type == tedb.SQLite3 {
 			createTable.SQL = `	CREATE TABLE dummy (
 									id		INTEGER			NOT NULL PRIMARY KEY,
 									foo		VARCHAR(32)		NOT NULL
@@ -202,7 +202,7 @@ func main() {
 				5, "xxx",
 			},
 		}
-		if Db.Config.Type == tedb.Postgres {
+		if Db.Config().Type == tedb.Postgres {
 			insertRows.SQL = `	INSERT INTO dummy
 								(id, 	foo)
 							VALUES
@@ -232,7 +232,7 @@ func main() {
 		// region: UPDATE
 
 		updateRows := tedb.Statement{Args: []interface{}{"quux", "baz"}}
-		if Db.Config.Type == tedb.Postgres {
+		if Db.Config().Type == tedb.Postgres {
 			updateRows.SQL = `UPDATE dummy SET foo = $1 WHERE foo = $2;`
 		} else {
 			updateRows.SQL = `UPDATE dummy SET foo = ? WHERE foo = ?;`
@@ -255,15 +255,17 @@ func main() {
 			Logger.Out("DELETE ERROR", deleteRows.Err)
 		}
 
-		tx.Session.Commit()
+		if e := tx.Session().Commit(); e != nil {
+			Logger.Out("COMMIT ERROR", e)
+		}
 
 		// endregion: DELETE
 
 		// endregion: Exec()
 		// region: history
 
-		Logger.Out(logLevel, fmt.Sprintf("HISTORY LENGTH: %d", len(Db.History)))
-		for k, v := range Db.History {
+		Logger.Out(logLevel, fmt.Sprintf("HISTORY LENGTH: %d", len(Db.History())))
+		for k, v := range Db.History() {
 			if v != nil {
 				Logger.Out(logLevel, fmt.Sprintf("HISTORY ENTRY #%d: %s", k, v.SQL))
 			}

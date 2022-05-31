@@ -92,8 +92,14 @@ sqlite3 tex.db
 
 ## Random improvements to be made
 
+* Exec
+  * add Statement.Db
+  * Executable => interface
+  * Exec() handle Tx
+  * Tx.Exec
+  * Statement.Exec() handle Tx
+* add Commit func w/ history
 * copy from trustone
-  * Exec in TX
   * Query to map
     * s.Result interface{} vs sql.Result
     * s.Rows?
