@@ -20,6 +20,30 @@ import (
 // endregion: packages
 // region: types
 
+// region: flat
+
+type DbType int
+type History []Statement
+
+// endregion: flat
+// region: interface
+
+type canExecute interface {
+	appendHistory(s *Statement)
+	Config() *Config
+	exec() interface{}
+}
+
+type hasHistory interface {
+	appendHistory(s *Statement)
+	Config() *Config
+	History() History
+	setHistory(*History)
+}
+
+// endregion: interface
+// region: struct
+
 type Config struct {
 
 	// region: dsn
@@ -52,31 +76,15 @@ type Config struct {
 
 }
 
-type DbType int
-
 type Db struct {
 	config  *Config
 	conn    *sql.DB
 	history History
 }
 
-// type ExecAble interface {
-// 	Config() *Config
-// 	Conn() *sql.DB
-// 	History() History
-// }
-
-type hasHistory interface {
-	appendHistory(s *Statement)
-	Config() *Config
-	History() History
-	setHistory(*History)
-}
-
-type History []*Statement
-
 type Statement struct {
 	Args         []interface{}
+	Db           *Db
 	Err          error
 	LastInsertId int64
 	Result       sql.Result
@@ -91,6 +99,8 @@ type Tx struct {
 	history History
 	session *sql.Tx
 }
+
+// endregion: struct
 
 // endregion: types
 // region: (pseudo-)constants
@@ -121,6 +131,7 @@ var (
 	ErrInvalidDSNAddr         = errors.New("invalid DSN: network address not terminated (missing closing brace)")
 	ErrInvalidDSNNoSlash      = errors.New("invalid DSN: missing the slash separating the database name")
 	ErrInvalidDSNUnescaped    = errors.New("invalid DSN: did you forget to escape a param value?")
+	ErrInvalidExec            = errors.New("invalid interface.exec()")
 	ErrNotImplementedYet      = errors.New("not implemented yet")
 	ErrTooManyParameters      = errors.New("too many parameters")
 	// ErrInvalidDSNUnsafeCollation = errors.New("invalid DSN: interpolateParams can not be used with unsafe collations")
@@ -333,7 +344,7 @@ func Open(cs ...*Config) (*Db, error) {
 	db.conn.SetMaxIdleConns(*c.MaxIdleConns)
 	db.conn.SetConnMaxLifetime(*c.MaxLifetime)
 
-	db.history = make([]*Statement, 0, *db.config.History)
+	db.history = make(History, 0, *db.config.History)
 
 	// endregion: connect
 	// region: ping
@@ -385,6 +396,10 @@ func (db *Db) Conn() *sql.DB {
 	return db.conn
 }
 
+func (db *Db) exec() interface{} {
+	return db.conn
+}
+
 func (db *Db) History() History {
 	return db.history
 }
@@ -404,8 +419,8 @@ func Begin(db *Db) (*Tx, error) {
 	}
 
 	tx := Tx{db: db, session: session}
-	tx.history = make([]*Statement, 0, *db.Config().History)
-	tx.appendHistory(&Statement{SQL: "BEGIN", Tx: &tx})
+	tx.history = make(History, 0, *db.Config().History)
+	tx.appendHistory(&Statement{Db: db, SQL: "BEGIN", Tx: &tx})
 	return &tx, nil
 }
 
@@ -420,12 +435,12 @@ func (tx *Tx) Config() *Config {
 	return tx.Db().Config()
 }
 
-func (tx *Tx) Conn() *sql.DB {
-	return tx.Db().Conn()
-}
-
 func (tx *Tx) Db() *Db {
 	return tx.db
+}
+
+func (tx *Tx) exec() interface{} {
+	return tx.session
 }
 
 func (tx *Tx) History() History {
@@ -452,7 +467,7 @@ func appendHistory(i hasHistory, s *Statement) {
 		h = h[:l]
 	}
 
-	h = append(History{s}, h...)
+	h = append(History{*s}, h...)
 	i.setHistory(&h)
 }
 
@@ -480,80 +495,97 @@ func (tx *Tx) setHistory(h *History) {
 // endregion: history
 // region: exec
 
-func Exec(db *Db, stmnt Statement) Statement {
-	log.Out(db.Config().Logger, *db.Config().Loglevel, MsgExecStatement, stmnt)
+func Exec(i canExecute, s *Statement) error {
+	log.Out(i.Config().Logger, *i.Config().Loglevel, MsgExecStatement, s.SQL, s.Args)
 
 	// region: xss protection
 
 	// TODO: check sting and []byte if content is valid JSON?
 
-	if !stmnt.Unprotected {
-		for k, v := range stmnt.Args {
+	if !s.Unprotected {
+		for k, v := range s.Args {
 			switch v.(type) {
 			case string:
-				stmnt.Args[k] = template.HTMLEscaper(v)
+				s.Args[k] = template.HTMLEscaper(v)
 			case []byte:
-				stmnt.Args[k] = template.HTMLEscaper(string(v.([]byte)))
+				s.Args[k] = template.HTMLEscaper(string(v.([]byte)))
 			case sql.NullString:
-				stmnt.Args[k] = sql.NullString{
+				s.Args[k] = sql.NullString{
 					String: template.HTMLEscaper(v.(sql.NullString).String),
 					Valid:  v.(sql.NullString).Valid,
 				}
 			default:
-				stmnt.Args[k] = v
+				s.Args[k] = v
 			}
 		}
-		stmnt.SQL = template.HTMLEscaper(stmnt.SQL)
-		log.Out(db.Config().Logger, *db.Config().Loglevel, MsgExecStatementEscaped, stmnt)
+		s.SQL = template.HTMLEscaper(s.SQL)
+		log.Out(i.Config().Logger, *i.Config().Loglevel, MsgExecStatementEscaped, *s)
 	}
 
 	// endregion: injection protection
-	// region: actual
+	// region: execution
 
-	var err error
-	stmnt.Result, err = db.Conn().Exec(stmnt.SQL, stmnt.Args...)
-	if err != nil {
-		stmnt.Err = fmt.Errorf("%s: %w", ErrExecFailed, err)
-		log.Out(db.Config().Logger, *db.Config().Loglevel, stmnt.Err)
-		return stmnt
+	s.Err = nil
+
+	switch i.exec().(type) {
+	case *sql.DB:
+		s.Result, s.Err = i.exec().(*sql.DB).Exec(s.SQL, s.Args...)
+		s.Db = i.(*Db)
+	case *sql.Tx:
+		s.Result, s.Err = i.exec().(*sql.Tx).Exec(s.SQL, s.Args...)
+		s.Tx = i.(*Tx)
+		s.Db = i.(*Tx).Db()
+	default:
+		s.Err = ErrInvalidExec
+		i.appendHistory(s)
+		log.Out(i.Config().Logger, *i.Config().Loglevel, s.Err)
+		return s.Err
+	}
+	if s.Err != nil {
+		s.Err = fmt.Errorf("%s: %s", ErrExecFailed, s.Err)
+		i.appendHistory(s)
+		log.Out(i.Config().Logger, *i.Config().Loglevel, s.Err)
+		return s.Err
 	}
 
-	// endregion: actual
+	// endregion: execution
 	// region: last id and rows affected
 
-	if db.Config().Type != Postgres {
-		stmnt.LastInsertId, err = stmnt.Result.LastInsertId()
-		if err != nil {
-			stmnt.Err = fmt.Errorf("%s: %w", ErrExecLastIdFailed, err)
-			log.Out(db.Config().Logger, *db.Config().Loglevel, stmnt.Err)
-			return stmnt
+	if i.Config().Type != Postgres {
+		s.LastInsertId, s.Err = s.Result.LastInsertId()
+		if s.Err != nil {
+			s.Err = fmt.Errorf("%s: %w", ErrExecLastIdFailed, s.Err)
+			i.appendHistory(s)
+			log.Out(i.Config().Logger, *i.Config().Loglevel, s.Err)
+			return s.Err
 		}
 	}
 
-	stmnt.RowsAffected, err = stmnt.Result.RowsAffected()
-	if err != nil {
-		stmnt.Err = fmt.Errorf("%s: %w", ErrExecRowsAffectedFailed, err)
-		log.Out(db.Config().Logger, *db.Config().Loglevel, stmnt.Err)
-		return stmnt
+	s.RowsAffected, s.Err = s.Result.RowsAffected()
+	if s.Err != nil {
+		s.Err = fmt.Errorf("%s: %w", ErrExecRowsAffectedFailed, s.Err)
+		i.appendHistory(s)
+		log.Out(i.Config().Logger, *i.Config().Loglevel, s.Err)
+		return s.Err
 	}
 
 	// endregion: last id and rows affected
 
-	db.appendHistory(&stmnt)
-	return stmnt
+	i.appendHistory(s)
+	return nil
 }
 
-func (db *Db) Exec(stmnt Statement) Statement {
-	return Exec(db, stmnt)
-}
+// func (db *Db) Exec(stmnt Statement) Statement {
+// 	return Exec(db, stmnt)
+// }
 
-func (stmnt *Statement) Exec(db *Db) {
-	statement := Exec(db, *stmnt)
-	stmnt.Err = statement.Err
-	stmnt.RowsAffected = statement.RowsAffected
-	stmnt.LastInsertId = statement.LastInsertId
-	stmnt.Result = statement.Result
-}
+// func (stmnt *Statement) Exec(db *Db) {
+// 	statement := Exec(db, *stmnt)
+// 	stmnt.Err = statement.Err
+// 	stmnt.RowsAffected = statement.RowsAffected
+// 	stmnt.LastInsertId = statement.LastInsertId
+// 	stmnt.Result = statement.Result
+// }
 
 // endregion: exec
 // region: query

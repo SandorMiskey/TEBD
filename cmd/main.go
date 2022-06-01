@@ -155,10 +155,13 @@ func main() {
 		dropTable := tedb.Statement{
 			SQL: `DROP TABLE IF EXISTS dummy;`,
 		}
-		dropTable.Exec(Db) // or Db.Exec(dropTable) or db.Exec(Db, dropTable)
-		if dropTable.Err != nil {
+		if e := tedb.Exec(Db, &dropTable); e != nil {
 			Logger.Out("DROP TABLE ERROR", dropTable.Err)
 		}
+		// dropTable.Exec(Db) // or Db.Exec(dropTable)
+		// if dropTable.Err != nil {
+		// 	Logger.Out("DROP TABLE ERROR", dropTable.Err)
+		// }
 
 		// endregion: DROP TABLE
 		// region: CREATE TABLE
@@ -180,7 +183,7 @@ func main() {
 									foo		VARCHAR(32)		NOT NULL
 								);`
 		}
-		createTable.Exec(Db)
+		// createTable.Exec(Db)
 		if createTable.Err != nil {
 			Logger.Out("CREATE TABLE ERROR", createTable.Err)
 
@@ -222,7 +225,7 @@ func main() {
 								(?,		?);
 		`
 		}
-		insertRows.Exec(Db)
+		// insertRows.Exec(Db)
 		Logger.Out(logLevel, fmt.Sprintf("INSERT (LastInsertId: %d, RowsAffected: %d)", insertRows.LastInsertId, insertRows.RowsAffected))
 		if insertRows.Err != nil {
 			Logger.Out("INSERT ERROR", createTable.Err)
@@ -237,7 +240,7 @@ func main() {
 		} else {
 			updateRows.SQL = `UPDATE dummy SET foo = ? WHERE foo = ?;`
 		}
-		updateRows.Exec(Db)
+		// updateRows.Exec(Db)
 		Logger.Out(logLevel, fmt.Sprintf("UPDATE (LastInsertId: %d, RowsAffected: %d)", updateRows.LastInsertId, updateRows.RowsAffected))
 		if updateRows.Err != nil {
 			Logger.Out("UPDATE ERROR", updateRows.Err)
@@ -249,7 +252,7 @@ func main() {
 		deleteRows := tedb.Statement{
 			SQL: `DELETE FROM dummy WHERE id = 4;`,
 		}
-		deleteRows.Exec(Db)
+		// deleteRows.Exec(Db)
 		Logger.Out(logLevel, fmt.Sprintf("DELETE (LastInsertId: %d, RowsAffected: %d)", deleteRows.LastInsertId, deleteRows.RowsAffected))
 		if deleteRows.Err != nil {
 			Logger.Out("DELETE ERROR", deleteRows.Err)
@@ -266,9 +269,7 @@ func main() {
 
 		Logger.Out(logLevel, fmt.Sprintf("HISTORY LENGTH: %d", len(Db.History())))
 		for k, v := range Db.History() {
-			if v != nil {
-				Logger.Out(logLevel, fmt.Sprintf("HISTORY ENTRY #%d: %s", k, v.SQL))
-			}
+			Logger.Out(logLevel, fmt.Sprintf("HISTORY ENTRY #%d: %s", k, v.SQL))
 		}
 
 		// endregion: history

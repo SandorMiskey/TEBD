@@ -92,12 +92,13 @@ sqlite3 tex.db
 
 ## Random improvements to be made
 
+* History: []*Statement -> []Statement
 * Exec
-  * add Statement.Db
-  * Executable => interface
   * Exec() handle Tx
-  * Tx.Exec
+  * Db.Exec()
   * Statement.Exec() handle Tx
+  * Tx.Exec
+* Statement.Tx??? Statement.Db??? naming??? (Tx -> LastTx, Err -> LastErr, Db ->LastDb)
 * add Commit func w/ history
 * copy from trustone
   * Query to map
