@@ -92,13 +92,17 @@ sqlite3 tex.db
 
 ## Random improvements to be made
 
+* tx.Rollback()
+* defer tx.Rollback()
+* exec
+  * prepared statements
+  * batch (execTransaction @TO)
 * copy from trustone
   * Query to map
     * s.Result interface{} vs sql.Result
     * s.Rows?
     * s.Map, s.JSON?
   * Query to JSON
-  * execTransaction
   * in all above: use type Statement, register last query(s) and result sets
   * in all above: prepared statements
   * do batches

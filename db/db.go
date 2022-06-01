@@ -94,12 +94,6 @@ type Statement struct {
 	Unprotected  bool
 }
 
-type Tx struct {
-	db      *Db
-	history History
-	session *sql.Tx
-}
-
 // endregion: struct
 
 // endregion: types
@@ -407,79 +401,6 @@ func (db *Db) History() History {
 // endregion: getters
 
 // endregion: db
-// region: tx
-
-// region: begin
-
-func Begin(db *Db) (*Tx, error) {
-	s := &Statement{Db: db, SQL: "BEGIN"}
-
-	session, e := db.Conn().Begin()
-	if e != nil {
-		s.Err = e
-		db.appendHistory(s)
-		log.Out(db.Config().Logger, *db.Config().Loglevel, e)
-		return nil, e
-	}
-
-	tx := Tx{db: db, session: session}
-	tx.history = make(History, 0, *db.Config().History)
-	s.Tx = &tx
-	tx.appendHistory(s)
-	return &tx, nil
-}
-
-func (db *Db) Begin() (*Tx, error) {
-	return Begin(db)
-}
-
-// endregion: begin
-// region: commit
-
-func Commit(tx *Tx) error {
-	s := &Statement{Db: tx.Db(), Tx: tx, SQL: "COMMIT"}
-	e := tx.Session().Commit()
-	if e != nil {
-		s.Err = e
-		tx.appendHistory(s)
-		log.Out(tx.Db().Config().Logger, *tx.Db().Config().Loglevel, e)
-		return e
-	}
-
-	tx.appendHistory(s)
-	return nil
-}
-
-func (tx *Tx) Commit() error {
-	return Commit(tx)
-}
-
-// endregion: commit
-// region: getters
-
-func (tx *Tx) Config() *Config {
-	return tx.Db().Config()
-}
-
-func (tx *Tx) Db() *Db {
-	return tx.db
-}
-
-func (tx *Tx) exec() interface{} {
-	return tx.session
-}
-
-func (tx *Tx) History() History {
-	return tx.history
-}
-
-func (tx *Tx) Session() *sql.Tx {
-	return tx.session
-}
-
-// endregion: getters
-
-// endregion: tx
 // region: history
 
 func appendHistory(i hasHistory, s *Statement) {
@@ -501,21 +422,12 @@ func (db *Db) appendHistory(s *Statement) {
 	appendHistory(db, s)
 }
 
-func (tx *Tx) appendHistory(s *Statement) {
-	appendHistory(tx, s)
-	appendHistory(tx.Db(), s)
-}
-
 func (s *Statement) appendHistory(i hasHistory) {
 	i.appendHistory(s)
 }
 
 func (db *Db) setHistory(h *History) {
 	db.history = *h
-}
-
-func (tx *Tx) setHistory(h *History) {
-	tx.history = *h
 }
 
 // endregion: history
@@ -526,7 +438,7 @@ func Exec(i canExecute, s *Statement) error {
 
 	// region: xss protection
 
-	// TODO: check sting and []byte if content is valid JSON?
+	// TODO: check string and []byte if content is valid JSON?
 
 	if !s.Unprotected {
 		for k, v := range s.Args {
@@ -603,10 +515,6 @@ func Exec(i canExecute, s *Statement) error {
 
 func (db *Db) Exec(s *Statement) error {
 	return Exec(db, s)
-}
-
-func (tx *Tx) Exec(s *Statement) error {
-	return Exec(tx, s)
 }
 
 func (s *Statement) Exec(i canExecute) error {
