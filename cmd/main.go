@@ -158,6 +158,9 @@ func main() {
 		if e := tedb.Exec(Db, &dropTable); e != nil {
 			Logger.Out("DROP TABLE ERROR", dropTable.Err)
 		}
+		// if e := Db.Exec(&dropTable); e != nil {
+		// 	Logger.Out("DROP TABLE ERROR", dropTable.Err)
+		// }
 		// dropTable.Exec(Db) // or Db.Exec(dropTable)
 		// if dropTable.Err != nil {
 		// 	Logger.Out("DROP TABLE ERROR", dropTable.Err)
@@ -183,19 +186,22 @@ func main() {
 									foo		VARCHAR(32)		NOT NULL
 								);`
 		}
-		// createTable.Exec(Db)
+		_ = Db.Exec(&createTable)
 		if createTable.Err != nil {
 			Logger.Out("CREATE TABLE ERROR", createTable.Err)
 
 		}
 
 		// endregion: CREATE TABLE
-		// region: INSERT (with new Tx)
+		// region: BEGIN
 
 		tx, err := Db.Begin()
 		if err != nil {
-			Logger.Out(logLevel, "TX ERROR", err)
+			Logger.Out(logLevel, "TX BEGIN ERROR", err)
 		}
+
+		// endregion: BEGIN
+		// region: INSERT
 
 		insertRows := tedb.Statement{
 			Args: []interface{}{
@@ -206,30 +212,24 @@ func main() {
 			},
 		}
 		if Db.Config().Type == tedb.Postgres {
-			insertRows.SQL = `	INSERT INTO dummy
-								(id, 	foo)
-							VALUES
-								($1,	$2),
-								($3,	$4),
-								($5,	$6),
-								($7,	$8)
-							RETURNING id;
-		`
+			insertRows.SQL = `	INSERT	INTO dummy (id, foo)
+								VALUES	($1, $2),
+										($3, $4),
+										($5, $6),
+										($7, $8)
+								RETURNING id;`
 		} else {
-			insertRows.SQL = `	INSERT INTO dummy
-								(id, 	foo)
-							VALUES
-								(?,		?),
-								(?,		?),
-								(?,		?),
-								(?,		?);
-		`
+			insertRows.SQL = `	INSERT	INTO dummy (id, foo)
+								VALUES	(?, ?),
+										(?, ?),
+										(?, ?),
+										(?, ?);`
 		}
-		// insertRows.Exec(Db)
-		Logger.Out(logLevel, fmt.Sprintf("INSERT (LastInsertId: %d, RowsAffected: %d)", insertRows.LastInsertId, insertRows.RowsAffected))
+		_ = tx.Exec(&insertRows)
 		if insertRows.Err != nil {
 			Logger.Out("INSERT ERROR", createTable.Err)
 		}
+		Logger.Out(logLevel, fmt.Sprintf("INSERT (LastInsertId: %d, RowsAffected: %d)", insertRows.LastInsertId, insertRows.RowsAffected))
 
 		// endregion: INSERT
 		// region: UPDATE
@@ -240,26 +240,29 @@ func main() {
 		} else {
 			updateRows.SQL = `UPDATE dummy SET foo = ? WHERE foo = ?;`
 		}
-		// updateRows.Exec(Db)
-		Logger.Out(logLevel, fmt.Sprintf("UPDATE (LastInsertId: %d, RowsAffected: %d)", updateRows.LastInsertId, updateRows.RowsAffected))
+		_ = updateRows.Exec(tx)
 		if updateRows.Err != nil {
 			Logger.Out("UPDATE ERROR", updateRows.Err)
 		}
+		Logger.Out(logLevel, fmt.Sprintf("UPDATE (LastInsertId: %d, RowsAffected: %d)", updateRows.LastInsertId, updateRows.RowsAffected))
 
 		// endregion: UPDATE
-		// region: DELETE (and commit Tx)
+		// region: COMMIT
+
+		if e := tx.Commit(); e != nil {
+			Logger.Out(logLevel, "TX COMMIT ERROR", e)
+		}
+
+		// endregion: COMMIT
+		// region: DELETE
 
 		deleteRows := tedb.Statement{
 			SQL: `DELETE FROM dummy WHERE id = 4;`,
 		}
-		// deleteRows.Exec(Db)
+		deleteRows.Exec(Db)
 		Logger.Out(logLevel, fmt.Sprintf("DELETE (LastInsertId: %d, RowsAffected: %d)", deleteRows.LastInsertId, deleteRows.RowsAffected))
 		if deleteRows.Err != nil {
 			Logger.Out("DELETE ERROR", deleteRows.Err)
-		}
-
-		if e := tx.Session().Commit(); e != nil {
-			Logger.Out("COMMIT ERROR", e)
 		}
 
 		// endregion: DELETE

@@ -92,14 +92,6 @@ sqlite3 tex.db
 
 ## Random improvements to be made
 
-* History: []*Statement -> []Statement
-* Exec
-  * Exec() handle Tx
-  * Db.Exec()
-  * Statement.Exec() handle Tx
-  * Tx.Exec
-* Statement.Tx??? Statement.Db??? naming??? (Tx -> LastTx, Err -> LastErr, Db ->LastDb)
-* add Commit func w/ history
 * copy from trustone
   * Query to map
     * s.Result interface{} vs sql.Result
@@ -116,5 +108,6 @@ sqlite3 tex.db
 * setters (like Db.SetLogger()), reset (re-parse config)
 * connection catalog w/ close all
 * SQLite authentication
+* un-export tx.Session()?
 * ---
 * [gorm?](https://gorm.io/index.html)

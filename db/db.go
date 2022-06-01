@@ -412,15 +412,20 @@ func (db *Db) History() History {
 // region: begin
 
 func Begin(db *Db) (*Tx, error) {
-	session, err := db.Conn().Begin()
-	if err != nil {
-		log.Out(db.Config().Logger, *db.Config().Loglevel, err)
-		return nil, err
+	s := &Statement{Db: db, SQL: "BEGIN"}
+
+	session, e := db.Conn().Begin()
+	if e != nil {
+		s.Err = e
+		db.appendHistory(s)
+		log.Out(db.Config().Logger, *db.Config().Loglevel, e)
+		return nil, e
 	}
 
 	tx := Tx{db: db, session: session}
 	tx.history = make(History, 0, *db.Config().History)
-	tx.appendHistory(&Statement{Db: db, SQL: "BEGIN", Tx: &tx})
+	s.Tx = &tx
+	tx.appendHistory(s)
 	return &tx, nil
 }
 
@@ -429,6 +434,27 @@ func (db *Db) Begin() (*Tx, error) {
 }
 
 // endregion: begin
+// region: commit
+
+func Commit(tx *Tx) error {
+	s := &Statement{Db: tx.Db(), Tx: tx, SQL: "COMMIT"}
+	e := tx.Session().Commit()
+	if e != nil {
+		s.Err = e
+		tx.appendHistory(s)
+		log.Out(tx.Db().Config().Logger, *tx.Db().Config().Loglevel, e)
+		return e
+	}
+
+	tx.appendHistory(s)
+	return nil
+}
+
+func (tx *Tx) Commit() error {
+	return Commit(tx)
+}
+
+// endregion: commit
 // region: getters
 
 func (tx *Tx) Config() *Config {
@@ -575,17 +601,17 @@ func Exec(i canExecute, s *Statement) error {
 	return nil
 }
 
-// func (db *Db) Exec(stmnt Statement) Statement {
-// 	return Exec(db, stmnt)
-// }
+func (db *Db) Exec(s *Statement) error {
+	return Exec(db, s)
+}
 
-// func (stmnt *Statement) Exec(db *Db) {
-// 	statement := Exec(db, *stmnt)
-// 	stmnt.Err = statement.Err
-// 	stmnt.RowsAffected = statement.RowsAffected
-// 	stmnt.LastInsertId = statement.LastInsertId
-// 	stmnt.Result = statement.Result
-// }
+func (tx *Tx) Exec(s *Statement) error {
+	return Exec(tx, s)
+}
+
+func (s *Statement) Exec(i canExecute) error {
+	return Exec(i, s)
+}
 
 // endregion: exec
 // region: query
