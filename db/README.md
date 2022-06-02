@@ -92,11 +92,9 @@ sqlite3 tex.db
 
 ## Random improvements to be made
 
-* tx.Rollback()
-* defer tx.Rollback()
 * exec
   * prepared statements
-  * batch (execTransaction @TO)
+  * batch Args []interface{} -> [][]interface{}
 * copy from trustone
   * Query to map
     * s.Result interface{} vs sql.Result
@@ -107,11 +105,15 @@ sqlite3 tex.db
   * in all above: prepared statements
   * do batches
   * typed result sets where applicable
-* db.Statement initialization from JSON
-* support context.WithTimeout() in queries
+* db.Open from JSON/cfg
+* Statement from/TO JSON
+* Statement catalog from/to JSON (+cfg)
+* driver independent insert/update/delete (shortcuts for exec)
+* ---
+* execTransaction from TO?
+* support context(.WithTimeout) in queries
 * setters (like Db.SetLogger()), reset (re-parse config)
 * connection catalog w/ close all
 * SQLite authentication
-* un-export tx.Session()?
 * ---
 * [gorm?](https://gorm.io/index.html)

@@ -24,7 +24,7 @@ type Tx struct {
 // region: begin
 
 func Begin(db *Db) (*Tx, error) {
-	s := &Statement{Db: db, SQL: "BEGIN"}
+	s := &Statement{SQL: "BEGIN"}
 
 	session, e := db.Conn().Begin()
 	if e != nil {
@@ -36,7 +36,6 @@ func Begin(db *Db) (*Tx, error) {
 
 	tx := Tx{db: db, session: session}
 	tx.history = make(History, 0, *db.Config().History)
-	s.Tx = &tx
 	tx.appendHistory(s)
 	return &tx, nil
 }
@@ -49,7 +48,7 @@ func (db *Db) Begin() (*Tx, error) {
 // region: commit
 
 func Commit(tx *Tx) error {
-	s := &Statement{Db: tx.Db(), Tx: tx, SQL: "COMMIT"}
+	s := &Statement{SQL: "COMMIT"}
 	e := tx.Session().Commit()
 	if e != nil {
 		s.Err = e
@@ -109,3 +108,24 @@ func (tx *Tx) setHistory(h *History) {
 }
 
 // endregion: history
+// region: rollback
+
+func Rollback(tx *Tx) error {
+	s := &Statement{SQL: "ROLLBACK"}
+	e := tx.Session().Rollback()
+	if e != nil {
+		s.Err = e
+		tx.appendHistory(s)
+		log.Out(tx.Db().Config().Logger, *tx.Db().Config().Loglevel, e)
+		return e
+	}
+
+	tx.appendHistory(s)
+	return nil
+}
+
+func (tx *Tx) Rollback() error {
+	return Rollback(tx)
+}
+
+// endregion: rollback

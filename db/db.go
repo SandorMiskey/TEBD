@@ -22,6 +22,7 @@ import (
 
 // region: flat
 
+type Args [][]interface{}
 type DbType int
 type History []Statement
 
@@ -84,13 +85,11 @@ type Db struct {
 
 type Statement struct {
 	Args         []interface{}
-	Db           *Db
 	Err          error
 	LastInsertId int64
 	Result       sql.Result
 	RowsAffected int64
 	SQL          string
-	Tx           *Tx
 	Unprotected  bool
 }
 
@@ -151,7 +150,7 @@ var (
 
 	dbDefaultLoglevel syslog.Priority = log.LOG_DEBUG
 
-	dbDefaultHistory int = 5
+	dbDefaultHistory int = 10
 )
 
 var Defaults = DefaultsMySQL
@@ -468,11 +467,8 @@ func Exec(i canExecute, s *Statement) error {
 	switch i.exec().(type) {
 	case *sql.DB:
 		s.Result, s.Err = i.exec().(*sql.DB).Exec(s.SQL, s.Args...)
-		s.Db = i.(*Db)
 	case *sql.Tx:
 		s.Result, s.Err = i.exec().(*sql.Tx).Exec(s.SQL, s.Args...)
-		s.Tx = i.(*Tx)
-		s.Db = i.(*Tx).Db()
 	default:
 		s.Err = ErrInvalidExec
 		i.appendHistory(s)

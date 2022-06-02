@@ -199,6 +199,7 @@ func main() {
 		if err != nil {
 			Logger.Out(logLevel, "TX BEGIN ERROR", err)
 		}
+		defer tx.Rollback()
 
 		// endregion: BEGIN
 		// region: INSERT
