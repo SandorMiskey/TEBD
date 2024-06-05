@@ -4,8 +4,7 @@
 
 1. [ToC](#toc)
 2. [Examples](#examples)
-3. [Infra](#infra)
-4. [Random improvements to be made](#random-improvements-to-be-made)
+3. [Random improvements to be made](#random-improvements-to-be-made)
 
 ## Examples
 
@@ -47,54 +46,19 @@ dbConfig.Params = nil
 _, _ = dbConfig.Open()
 ```
 
-## Infra
-
-Launch database instances (in docker, where applicable) for development:
-
-```sh
-docker  run                                   \
-        --detach                              \
-        --name tex-mariadb                    \
-        --env MARIADB_DATABASE=tex            \
-        --env MARIADB_USER=tex                \
-        --env MARIADB_PASSWORD=<pw_here>      \
-        --env MARIADB_ROOT_PASSWORD=<pw_here> \
-        --publish 13306:3306                  \
-        mariadb:latest
-```
-
-```sh
-docker  run                                 \
-        --detach                            \
-        --name tex-mysql                    \
-        --env MYSQL_DATABASE=tex            \
-        --env MYSQL_USER=tex                \
-        --env MYSQL_PASSWORD=<pw_here>      \
-        --env MYSQL_ROOT_PASSWORD=<pw_here> \
-        --publish 23306:3306                \
-        mysql:latest
-```
-
-```sh
-docker  run                               \
-        --detach                          \
-        --name tex-postgres               \
-        --env POSTGRES_DB=tex             \
-        --env POSTGRES_USER=tex           \
-        --env POSTGRES_PASSWORD=TEx99! \
-        --publish 15432:5432              \
-        postgres:latest
-```
-
-```sh
-sqlite3 tex.db
-```
-
 ## Random improvements to be made
 
 * exec
-  * prepared statements
-  * batch Args []interface{} -> [][]interface{}
+  * prepared statements:
+    * ~~Db has []*Tx~~
+      * ~~struct def~~
+      * ~~append on new tx~~
+      * ~~getter~~?
+    * Db has []*Statement with prepared
+    * prepare only for db
+    * in case of i=tx use tx.Stmt
+  * batch Args []interface{} -> [][]interface{} (in a Tx, prepared)
+  * batch Statement -> []Statement
 * copy from trustone
   * Query to map
     * s.Result interface{} vs sql.Result

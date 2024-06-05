@@ -87,6 +87,7 @@ func main() {
 	_ = telog.Out(lfc, logLevel, "entry2", "with", "severity") // write to identified channel with severity
 	_ = telog.Out(&Logger, logLevel, "foobar")                 // write to all logger channels with severity
 	_ = Logger.Out(logLevel, *telog.ChDefaults.Mark)           // write to all channels with severity
+
 	// _ = lfc.Out(*telog.ChDefaults.Mark)                            // write to identified channel
 	// _ = Logger.Ch[0].Out(*telog.ChDefaults.Mark, "bar", 1, 1.1, true) // write directly to the first channel
 	// _ = Logger.Out(*telog.ChDefaults.Mark)                            // write to all channels
@@ -205,7 +206,7 @@ func main() {
 		// region: INSERT
 
 		insertRows := tedb.Statement{
-			Args: []interface{}{
+			Args: tedb.Args{
 				1, "foo",
 				2, "bar",
 				4, "baz",
@@ -228,7 +229,7 @@ func main() {
 		}
 		_ = tx.Exec(&insertRows)
 		if insertRows.Err != nil {
-			Logger.Out("INSERT ERROR", createTable.Err)
+			Logger.Out("INSERT ERROR", insertRows.Err)
 		}
 		Logger.Out(logLevel, fmt.Sprintf("INSERT (LastInsertId: %d, RowsAffected: %d)", insertRows.LastInsertId, insertRows.RowsAffected))
 
@@ -255,6 +256,36 @@ func main() {
 		}
 
 		// endregion: COMMIT
+		// region: INSERT BATCH
+
+		// insertBatch := tedb.Statement{
+		// 	Args: tedb.Args{
+		// 		tedb.Args{7, "xxxxxxx"},
+		// 		tedb.Args{9, "xxxxxxxxx"},
+		// 		tedb.Args{11, "xxxxxxxxxxx"},
+		// 	},
+		// }
+		// if Db.Config().Type == tedb.Postgres {
+		// 	insertBatch.SQL = `	INSERT	INTO dummy (id, foo)
+		// 								VALUES	($1, $2),
+		// 										($3, $4),
+		// 										($5, $6),
+		// 										($7, $8)
+		// 								RETURNING id;`
+		// } else {
+		// 	insertBatch.SQL = `	INSERT	INTO dummy (id, foo)
+		// 								VALUES	(?, ?),
+		// 										(?, ?),
+		// 										(?, ?),
+		// 										(?, ?);`
+		// }
+		// _ = Db.Exec(&insertBatch)
+		// if insertBatch.Err != nil {
+		// 	Logger.Out("INSERT ERROR", insertBatch.Err)
+		// }
+		// Logger.Out(logLevel, fmt.Sprintf("INSERT (LastInsertId: %d, RowsAffected: %d)", insertBatch.LastInsertId, insertBatch.RowsAffected))
+
+		// endregion: INSERT BATCH
 		// region: DELETE
 
 		deleteRows := tedb.Statement{
@@ -273,7 +304,7 @@ func main() {
 
 		Logger.Out(logLevel, fmt.Sprintf("HISTORY LENGTH: %d", len(Db.History())))
 		for k, v := range Db.History() {
-			Logger.Out(logLevel, fmt.Sprintf("HISTORY ENTRY #%d: %s", k, v.SQL))
+			Logger.Out(logLevel, fmt.Sprintf("HISTORY ENTRY #%d SQL: %s", k, v.SQL), fmt.Sprintf("HISTORY ENTRY #%d Err: %s", k, v.Err))
 		}
 
 		// endregion: history

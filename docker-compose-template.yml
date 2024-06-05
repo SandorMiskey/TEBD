@@ -1,0 +1,39 @@
+version: '3.0'
+
+services:
+  tex-mariadb:
+    image: mariadb:latest
+    container_name: tex-mariadb
+    networks: ['tex-network']
+    ports: 
+    - 13306:3306
+    environment:
+      - MARIADB_DATABASE=tex
+      - MARIADB_USER=tex
+      - MARIADB_PASSWORD=<pw_here>
+      - MARIADB_ROOT_PASSWORD=<pw_here> 
+
+  tex-mysql:
+    image: mysql:latest
+    container_name: tex-mysql
+    networks: ['tex-network']
+    ports: 
+    - 13306:3306
+    environment:
+      - MYSQL_DATABASE=tex
+      - MYSQL_USER=tex
+      - MYSQL_PASSWORD=<pw_here
+      - MYSQL_ROOT_PASSWORD=<pw_here>  
+
+  tex-postrgres:
+    image: postgres:latest
+    container_name: tex-postgres
+    networks: ['tex-network']
+    ports:
+    - 15432:5432
+    environment:
+      - POSTGRES_DB=tex
+      - POSTGRES_USER=tex
+      - POSTGRES_PASSWORD=<password_goes_here>
+
+networks: {tex-network: {}}

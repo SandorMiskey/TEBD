@@ -26,6 +26,7 @@ _ = log.Out(&Logger, log.LOG_EMERG, "foobar")                   // write to all 
 
 ## Random improvements to be made
 
+* support for dispatcher functions (eg. func log() in db/db.go)
 * Logger.HR [hint](https://stackoverflow.com/questions/16569433/get-terminal-size-in-go)
 * max message width (in sample encoder)
 * add taxonomy field

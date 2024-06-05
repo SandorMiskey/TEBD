@@ -37,6 +37,7 @@ func Begin(db *Db) (*Tx, error) {
 	tx := Tx{db: db, session: session}
 	tx.history = make(History, 0, *db.Config().History)
 	tx.appendHistory(s)
+	db.tx = append(db.tx, &tx)
 	return &tx, nil
 }
 

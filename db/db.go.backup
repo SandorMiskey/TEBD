@@ -22,7 +22,6 @@ import (
 
 // region: flat
 
-type Args []interface{}
 type DbType int
 type History []Statement
 
@@ -81,11 +80,10 @@ type Db struct {
 	config  *Config
 	conn    *sql.DB
 	history History
-	tx      []*Tx
 }
 
 type Statement struct {
-	Args         Args
+	Args         []interface{}
 	Err          error
 	LastInsertId int64
 	Result       sql.Result
@@ -119,8 +117,8 @@ var Drivers = map[DbType]string{
 
 var (
 	ErrExecFailed             = errors.New("db.Exec() failed")
-	ErrExecLastIdFailed       = errors.New("db.Exec was successful but getting LastInsertId failed")
-	ErrExecRowsAffectedFailed = errors.New("db.Exec was successful but getting RowsAffected failed")
+	ErrExecLastIdFailed       = errors.New("db.Exec was successfull but getting LastInsertId failed")
+	ErrExecRowsAffectedFailed = errors.New("db.Exec was successfull but getting RowsAffected failed")
 	ErrInvalidDbType          = errors.New("invalid db type")
 	ErrInvalidDSNAddr         = errors.New("invalid DSN: network address not terminated (missing closing brace)")
 	ErrInvalidDSNNoSlash      = errors.New("invalid DSN: missing the slash separating the database name")
@@ -288,15 +286,9 @@ func (c *Config) SetDefaults() {
 // endregion: defaults
 // region: logger
 
-// TODO: this isn't a good idea, until we implement support for dispatcher function in log/log.go (problem: in the logs we will see this function as a source of entries)
-
-func Logger(db *Db, n ...interface{}) {
-	log.Out(db.config.Logger, *db.config.Loglevel, n...)
-}
-
-func (db *Db) Logger(n ...interface{}) {
-	Logger(db, n...)
-}
+// func (db *Db) Logger(n ...interface{}) {
+// 	log.Out(db.Config.Logger, *db.Config.Loglevel, n...)
+// }
 
 // endregion: logger
 // region: db
@@ -306,8 +298,6 @@ func (db *Db) Logger(n ...interface{}) {
 func Open(cs ...*Config) (*Db, error) {
 
 	// region: prepare input
-
-	// TODO: check and set Defaults = DefaultsPostgres here in case
 
 	// not sure if this is idiomatic, but this way you can call db.Open() instead of db.Open(db.DbDefaults)
 
@@ -357,8 +347,7 @@ func Open(cs ...*Config) (*Db, error) {
 		db.conn.Close()
 		return nil, e
 	}
-	// log.Out(c.Logger, *c.Loglevel, fmt.Sprintf("connection is established to %s with %s driver", c.DSN, Drivers[c.Type]))
-	db.Logger(fmt.Sprintf("db.Open(): %s to %s with %s driver", MsgConnEstablished, c.DSN, Drivers[c.Type]))
+	log.Out(c.Logger, *c.Loglevel, fmt.Sprintf("connection is established to %s with %s driver", c.DSN, Drivers[c.Type]))
 
 	// endregion: ping
 
@@ -405,10 +394,6 @@ func (db *Db) exec() interface{} {
 
 func (db *Db) History() History {
 	return db.history
-}
-
-func (db *Db) Tx() []*Tx {
-	return db.tx
 }
 
 // endregion: getters
@@ -474,27 +459,21 @@ func Exec(i canExecute, s *Statement) error {
 	}
 
 	// endregion: injection protection
-	// region: db vs. tx
+	// region: execution
 
-	var e func(string, ...interface{}) (sql.Result, error)
+	s.Err = nil
 
 	switch i.exec().(type) {
 	case *sql.DB:
-		e = i.exec().(*sql.DB).Exec
+		s.Result, s.Err = i.exec().(*sql.DB).Exec(s.SQL, s.Args...)
 	case *sql.Tx:
-		e = i.exec().(*sql.Tx).Exec
+		s.Result, s.Err = i.exec().(*sql.Tx).Exec(s.SQL, s.Args...)
 	default:
 		s.Err = ErrInvalidExec
 		i.appendHistory(s)
 		log.Out(i.Config().Logger, *i.Config().Loglevel, s.Err)
 		return s.Err
 	}
-
-	// endregion: db vs. tx
-	// region: execution
-
-	s.Err = nil
-	s.Result, s.Err = e(s.SQL, s.Args...)
 	if s.Err != nil {
 		s.Err = fmt.Errorf("%s: %s", ErrExecFailed, s.Err)
 		i.appendHistory(s)

@@ -45,7 +45,7 @@ var FlagSetArguments = os.Args[1:]
 // default -h message
 var FlagSetUsage = func(fs *flag.FlagSet) func() {
 	return func() {
-		fmt.Printf("Usage of %s:\n\n", fs.Name())
+		fmt.Printf("Usage of %s [options] [args]:\n\n", fs.Name())
 		fs.PrintDefaults()
 		fmt.Printf("\n")
 		fmt.Printf("  Paramters can also be passed via env. variables, like `HTTPPORT=80` insted of '-httpPort=80'. Order of precedence:\n")

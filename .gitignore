@@ -7,6 +7,7 @@
 Gopkg.lock
 bin
 .env
+docker-compose.yml
 
 cmd/.dbpasswd
 cmd/tex.db
